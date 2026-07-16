@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Arena Shooter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ===================== HOME SCREEN ===================== -->
+  <section id="screen-home" class="screen active">
+    <div class="panel">
+      <h1 class="logo">ARENA<span>SHOOTER</span></h1>
+      <p class="tagline">Top-down deathmatch. First to 15 kills wins.</p>
+
+      <label class="field">
+        <span>Your name</span>
+        <input id="name-input" type="text" maxlength="16" placeholder="e.g. Ghost" autocomplete="off" />
+      </label>
+
+      <div class="you-are" id="you-are" hidden>
+        You are <strong id="my-id">-</strong>
+      </div>
+
+      <div class="home-actions">
+        <button id="btn-create" class="btn btn-primary">Create Game</button>
+        <div class="join-row">
+          <input id="join-code-input" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" />
+          <button id="btn-join" class="btn">Join</button>
+        </div>
+      </div>
+    </div>
+    <footer class="hint">WASD / arrows to move &middot; mouse to aim &middot; click to shoot &middot; Tab for scores</footer>
+  </section>
+
+  <!-- ===================== LOBBY SCREEN ===================== -->
+  <section id="screen-lobby" class="screen">
+    <div class="panel wide">
+      <div class="lobby-head">
+        <div>
+          <div class="label">Room code</div>
+          <div class="code-row">
+            <span id="room-code" class="room-code">------</span>
+            <button id="btn-copy" class="btn btn-ghost" title="Copy code">Copy</button>
+          </div>
+        </div>
+        <div class="you-are">You are <strong id="lobby-my-id">-</strong></div>
+      </div>
+
+      <div class="lobby-body">
+        <div class="roster-col">
+          <div class="label">Players <span id="player-count">(0/8)</span></div>
+          <ul id="roster" class="roster"></ul>
+        </div>
+
+        <div class="invite-col" id="invite-col">
+          <div class="label">Invite by player ID</div>
+          <div class="invite-row">
+            <input id="invite-input" type="text" maxlength="6" placeholder="P-XXXX" autocomplete="off" />
+            <button id="btn-invite" class="btn">Invite</button>
+          </div>
+          <div id="invite-status" class="invite-status"></div>
+        </div>
+      </div>
+
+      <div class="lobby-actions">
+        <button id="btn-leave" class="btn btn-ghost">Leave</button>
+        <button id="btn-start" class="btn btn-primary" disabled>Start Match</button>
+      </div>
+      <div id="lobby-note" class="lobby-note"></div>
+    </div>
+  </section>
+
+  <!-- ===================== GAME SCREEN ===================== -->
+  <section id="screen-game" class="screen">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud" class="hud">
+      <div id="kill-feed" class="kill-feed"></div>
+
+      <div id="scoreboard" class="scoreboard" hidden>
+        <div class="sb-title">Scoreboard</div>
+        <table>
+          <thead><tr><th>Player</th><th>K</th><th>D</th></tr></thead>
+          <tbody id="sb-body"></tbody>
+        </table>
+      </div>
+
+      <div id="score-strip" class="score-strip"></div>
+
+      <div id="respawn-overlay" class="respawn-overlay" hidden>
+        <div>You were eliminated</div>
+        <div class="respawn-count">Respawning in <span id="respawn-secs">0</span>&hellip;</div>
+      </div>
+
+      <button id="btn-quit" class="btn btn-ghost quit-btn">Leave Match</button>
+    </div>
+  </section>
+
+  <!-- ===================== GAME OVER OVERLAY ===================== -->
+  <div id="gameover" class="overlay" hidden>
+    <div class="overlay-card">
+      <h2 id="winner-line">Winner</h2>
+      <table class="standings">
+        <thead><tr><th>#</th><th>Player</th><th>Kills</th><th>Deaths</th></tr></thead>
+        <tbody id="standings-body"></tbody>
+      </table>
+      <button id="btn-back-lobby" class="btn btn-primary">Back to Lobby</button>
+    </div>
+  </div>
+
+  <!-- ===================== INVITE POPUP ===================== -->
+  <div id="invite-popup" class="overlay" hidden>
+    <div class="overlay-card small">
+      <h2>Game Invite</h2>
+      <p id="invite-text">Someone invited you.</p>
+      <div class="popup-actions">
+        <button id="btn-decline" class="btn btn-ghost">Decline</button>
+        <button id="btn-accept" class="btn btn-primary">Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TOAST ===================== -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
