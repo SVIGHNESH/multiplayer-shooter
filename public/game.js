@@ -24,6 +24,7 @@ const state = {
   pendingInvite: null,
   // Local-player damage feedback.
   myHp: 100,
+  myAlive: true,         // tracks alive<->dead transitions for death/respawn sfx
   damageFlashUntil: 0,   // performance.now() timestamp the red vignette fades out
   damageFlashStrength: 0,
   // Muzzle flashes: short-lived gunfire bursts at a shooter's barrel, spawned
@@ -244,6 +245,7 @@ socket.on('gameStarted', (data) => {
   state.prev = null;
   state.curr = null;
   state.myHp = 100;
+  state.myAlive = true;
   state.damageFlashUntil = 0;
   state.muzzleFlashes.length = 0;
   state.impacts.length = 0;
@@ -274,6 +276,7 @@ socket.on('state', (snap) => {
   // just fired, so burst a flash at the shooter's barrel tip.
   const prevIds = state.prev ? new Set(state.prev.bullets.map((b) => b.id)) : new Set();
   const radius = state.arena ? state.arena.playerRadius : 18;
+  const listener = state.curr.players.get(state.myId);
   for (const b of snap.bullets) {
     if (prevIds.has(b.id)) continue;
     const owner = state.curr.players.get(b.ownerId);
@@ -284,6 +287,14 @@ socket.on('state', (snap) => {
       born: state.recvCurr,
       color: state.colors.get(b.ownerId) || '#ffd740',
     });
+    // Gunfire sound: full volume for your own shots, distance-attenuated for others.
+    if (b.ownerId === state.myId) {
+      sfxShoot(1);
+    } else if (listener) {
+      const dist = Math.hypot(owner.x - listener.x, owner.y - listener.y);
+      const vol = 1 - dist / 1400;
+      if (vol > 0.06) sfxShoot(vol * 0.7);
+    }
   }
   if (state.muzzleFlashes.length > 40) state.muzzleFlashes.splice(0, state.muzzleFlashes.length - 40);
 
@@ -334,7 +345,12 @@ socket.on('state', (snap) => {
       const dmg = state.myHp - me.hp;
       state.damageFlashUntil = performance.now() + 450;
       state.damageFlashStrength = Math.min(0.6, 0.28 + (dmg / 100) * 0.5);
+      sfxHurt();
     }
+    // Death / respawn transitions get their own audio cues.
+    if (state.myAlive && !me.alive) sfxDeath();
+    else if (!state.myAlive && me.alive) sfxRespawn();
+    state.myAlive = me.alive;
     // Reset the baseline to full while dead so respawning back to 100 HP never flashes.
     state.myHp = me.alive ? me.hp : 100;
     updateHealthHud(me);
@@ -360,6 +376,8 @@ socket.on('killFeed', (data) => {
   feed.appendChild(div);
   setTimeout(() => div.remove(), 4000);
   while (feed.children.length > 5) feed.removeChild(feed.firstChild);
+  // Reward the local player with a confirm tone for their own eliminations.
+  if (state.myName && data.killer === state.myName && data.victim !== state.myName) sfxKill();
 });
 
 socket.on('gameOver', (data) => {
@@ -478,6 +496,84 @@ setInterval(() => {
   input.angle = aimAngle();
   socket.emit('input', input);
 }, 1000 / 30);
+
+// ===========================================================================
+// Audio: synthesized combat sound effects (Web Audio, no assets)
+// ===========================================================================
+
+const audio = { ctx: null, master: null, muted: false };
+
+function initAudio() {
+  if (audio.ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio.ctx = new AC();
+  audio.master = audio.ctx.createGain();
+  audio.master.gain.value = audio.muted ? 0 : 0.5;
+  audio.master.connect(audio.ctx.destination);
+}
+
+// Browsers block audio until a user gesture; create/resume the context on the
+// first interaction so the first shot is audible.
+function resumeAudio() {
+  if (!audio.ctx) initAudio();
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
+}
+window.addEventListener('pointerdown', resumeAudio);
+window.addEventListener('keydown', resumeAudio);
+
+// A single decaying oscillator note - the building block for every cue.
+function tone({ type = 'square', freq = 440, freqEnd = null, dur = 0.1, gain = 0.3, delay = 0 }) {
+  if (!audio.ctx || audio.muted) return;
+  const ctx = audio.ctx;
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (freqEnd && freqEnd !== freq) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
+  }
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t0 + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g);
+  g.connect(audio.master);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.03);
+}
+
+function sfxShoot(vol) {
+  tone({ type: 'square', freq: 720, freqEnd: 240, dur: 0.09, gain: 0.16 * vol });
+}
+function sfxHurt() {
+  tone({ type: 'sawtooth', freq: 220, freqEnd: 90, dur: 0.16, gain: 0.28 });
+}
+function sfxKill() {
+  tone({ type: 'square', freq: 660, dur: 0.08, gain: 0.22 });
+  tone({ type: 'square', freq: 990, dur: 0.12, gain: 0.22, delay: 0.08 });
+}
+function sfxDeath() {
+  tone({ type: 'sawtooth', freq: 300, freqEnd: 70, dur: 0.5, gain: 0.3 });
+}
+function sfxRespawn() {
+  tone({ type: 'triangle', freq: 440, freqEnd: 880, dur: 0.18, gain: 0.22 });
+}
+
+function setMuted(muted) {
+  audio.muted = muted;
+  if (audio.master) audio.master.gain.value = muted ? 0 : 0.5;
+  const btn = $('btn-mute');
+  btn.classList.toggle('muted', muted);
+  btn.setAttribute('aria-pressed', String(muted));
+  btn.title = muted ? 'Unmute sound (M)' : 'Mute sound (M)';
+  btn.innerHTML = muted ? '&#128263;' : '&#128266;';
+}
+
+$('btn-mute').addEventListener('click', () => setMuted(!audio.muted));
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyM' && screens.game.classList.contains('active')) setMuted(!audio.muted);
+});
 
 // ===========================================================================
 // Rendering
