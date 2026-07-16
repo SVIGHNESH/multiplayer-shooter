@@ -409,3 +409,36 @@ input[type="text"]:focus {
 }
 
 @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+
+/* Persistent connection-status banner: stays visible the whole time the socket is
+   disconnected (server down or a network drop) so the player knows their actions
+   are not getting through, rather than clicking buttons into a silent void. */
+.conn-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--danger);
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow);
+  z-index: 200;
+  animation: fade-in 0.15s ease;
+}
+
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  animation: conn-pulse 1s ease-in-out infinite;
+}
+
+@keyframes conn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }

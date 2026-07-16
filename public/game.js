@@ -416,9 +416,25 @@ socket.on('hitConfirm', (data) => {
 
 socket.on('errorMsg', (data) => toast(data.message || 'Something went wrong.'));
 
+// Persistent connection-status banner: while the socket is down (server offline or
+// a network drop), Socket.IO silently buffers every emit, so a button click looks
+// like it did nothing. The banner keeps the player informed until the link is back,
+// rather than a single 3s toast that fades and leaves them clicking into the void.
+function setConnBanner(text) {
+  const b = $('conn-banner');
+  if (text) { $('conn-text').innerHTML = text; b.hidden = false; }
+  else { b.hidden = true; }
+}
+
 socket.on('disconnect', () => {
-  toast('Disconnected from server.');
+  setConnBanner('Connection lost - reconnecting&hellip;');
 });
+
+// Fires when the initial connection or a reconnection attempt fails (e.g. the
+// server is down at page load); surface the same banner so home-screen clicks
+// are not silently swallowed.
+socket.io.on('reconnect_error', () => setConnBanner('Connection lost - reconnecting&hellip;'));
+socket.io.on('error', () => setConnBanner('Connection lost - reconnecting&hellip;'));
 
 // On a transient network drop, Socket.IO auto-reconnects with a brand-new server
 // connection, but the server discards a player's identity and room on disconnect.
@@ -426,6 +442,7 @@ socket.on('disconnect', () => {
 // screen forever (no snapshots arrive, every action is silently rejected). Recover
 // by re-registering for a fresh working session and dropping back to home.
 socket.on('connect', () => {
+  setConnBanner(null); // link restored - clear the persistent status banner
   if (!state.myId) return; // first connection - nothing to restore
   const wasEngaged = screens.lobby.classList.contains('active') || screens.game.classList.contains('active');
   const name = state.myName || $('name-input').value.trim();
