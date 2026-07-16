@@ -479,14 +479,46 @@ function draw() {
     ctx.strokeRect(o.x - camera.x, o.y - camera.y, o.w, o.h);
   }
 
-  // Bullets
+  // Bullets: interpolate each bullet's head between snapshots (matched by id) and
+  // draw a short tracer streak behind it so fast projectiles read smoothly at 60fps
+  // instead of stuttering ~23px per 30Hz snapshot.
   if (state.curr) {
+    const bt = interpFactor();
+    const prevBullets = new Map();
+    if (state.prev) for (const pb of state.prev.bullets) prevBullets.set(pb.id, pb);
+
+    ctx.lineCap = 'round';
     for (const b of state.curr.bullets) {
+      const color = state.colors.get(b.ownerId) || '#ffd740';
+      const p = prevBullets.get(b.id);
+      const hx = (p ? lerp(p.x, b.x, bt) : b.x) - camera.x;
+      const hy = (p ? lerp(p.y, b.y, bt) : b.y) - camera.y;
+
+      if (p) {
+        const dx = b.x - p.x;
+        const dy = b.y - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 0.5) {
+          const streak = Math.min(d, 26);
+          const tx = hx - (dx / d) * streak;
+          const ty = hy - (dy / d) * streak;
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.5;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
       ctx.beginPath();
-      ctx.fillStyle = state.colors.get(b.ownerId) || '#ffd740';
-      ctx.arc(b.x - camera.x, b.y - camera.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.arc(hx, hy, 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.lineCap = 'butt';
   }
 
   // Players

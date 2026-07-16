@@ -382,7 +382,7 @@ function broadcastState(room, now) {
   const snapshot = {
     t: now,
     players: [],
-    bullets: room.bullets.map((b) => ({ x: Math.round(b.x), y: Math.round(b.y), ownerId: b.ownerId })),
+    bullets: room.bullets.map((b) => ({ id: b.id, x: Math.round(b.x), y: Math.round(b.y), ownerId: b.ownerId })),
     scores: scoreboard(room),
   };
   for (const id of room.joinOrder) {
