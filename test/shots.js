@@ -164,6 +164,23 @@ async function newPage(browserWsBase, targetUrl) {
     await host.shot('07-scoreboard');
     await host.eval(`document.getElementById('scoreboard').hidden = true; true`);
 
+    // ---- Muzzle flash (inject fresh flashes anchored to the local player) ----
+    const flashN = await host.eval(`
+      const me = state.curr && state.curr.players.get(state.myId);
+      if (me) {
+        const now = performance.now();
+        // Offset toward the arena interior so the burst stays on-screen even
+        // when the player is clamped against an arena edge.
+        const ox = me.x < 800 ? 40 : -40;
+        const oy = me.y < 600 ? 40 : -40;
+        state.muzzleFlashes.push({ x: me.x, y: me.y, born: now, color: '#ffd740' });
+        state.muzzleFlashes.push({ x: me.x + ox, y: me.y + oy, born: now, color: '#40c4ff' });
+      }
+      state.muzzleFlashes.length`);
+    console.log('  muzzle flashes queued:', flashN);
+    await sleep(25);
+    await host.shot('07c-muzzle-flash');
+
     // ---- Damage vignette (force the flash to full strength and capture) ----
     await host.eval(`
       state.damageFlashStrength = 0.6;

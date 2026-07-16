@@ -26,6 +26,9 @@ const state = {
   myHp: 100,
   damageFlashUntil: 0,   // performance.now() timestamp the red vignette fades out
   damageFlashStrength: 0,
+  // Muzzle flashes: short-lived gunfire bursts at a shooter's barrel, spawned
+  // when a new bullet id first appears in a snapshot.
+  muzzleFlashes: [],     // { x, y, born, color }
 };
 
 // ===========================================================================
@@ -238,6 +241,7 @@ socket.on('gameStarted', (data) => {
   state.curr = null;
   state.myHp = 100;
   state.damageFlashUntil = 0;
+  state.muzzleFlashes.length = 0;
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   state.scoreboardOpen = false;
@@ -255,6 +259,23 @@ socket.on('state', (snap) => {
     scores: snap.scores,
   };
   state.recvCurr = performance.now();
+
+  // Muzzle flash: any bullet id present now but not in the previous snapshot was
+  // just fired, so burst a flash at the shooter's barrel tip.
+  const prevIds = state.prev ? new Set(state.prev.bullets.map((b) => b.id)) : new Set();
+  const radius = state.arena ? state.arena.playerRadius : 18;
+  for (const b of snap.bullets) {
+    if (prevIds.has(b.id)) continue;
+    const owner = state.curr.players.get(b.ownerId);
+    if (!owner) continue;
+    state.muzzleFlashes.push({
+      x: owner.x + Math.cos(owner.angle) * (radius + 10),
+      y: owner.y + Math.sin(owner.angle) * (radius + 10),
+      born: state.recvCurr,
+      color: state.colors.get(b.ownerId) || '#ffd740',
+    });
+  }
+  if (state.muzzleFlashes.length > 40) state.muzzleFlashes.splice(0, state.muzzleFlashes.length - 40);
 
   // Trigger a red damage vignette when the local player's health drops.
   const me = state.curr.players.get(state.myId);
@@ -530,6 +551,9 @@ function draw() {
     }
   }
 
+  // Muzzle flashes: brief additive gunfire bursts at each shot's origin.
+  drawMuzzleFlashes();
+
   // Damage vignette: red glow creeping in from the screen edges, fading out.
   const nowMs = performance.now();
   if (nowMs < state.damageFlashUntil) {
@@ -551,6 +575,41 @@ function draw() {
   } else {
     $('respawn-overlay').hidden = true;
   }
+}
+
+const MUZZLE_MS = 110;
+function drawMuzzleFlashes() {
+  if (!state.muzzleFlashes.length) return;
+  const now = performance.now();
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const kept = [];
+  for (const f of state.muzzleFlashes) {
+    const age = now - f.born;
+    if (age >= MUZZLE_MS) continue;
+    kept.push(f);
+    const t = 1 - age / MUZZLE_MS;   // 1 -> 0 over the flash lifetime
+    const x = f.x - camera.x;
+    const y = f.y - camera.y;
+    const r = 6 + (1 - t) * 12;       // expands slightly as it fades
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(255,255,240,${(0.9 * t).toFixed(3)})`);
+    grad.addColorStop(0.4, hexToRgba(f.color, 0.7 * t));
+    grad.addColorStop(1, hexToRgba(f.color, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  state.muzzleFlashes = kept;
+}
+
+function hexToRgba(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r},${g},${b},${a})`;
 }
 
 function clampCam(v, max) {
@@ -636,5 +695,6 @@ function resetGameState() {
   state.prev = state.curr = null;
   state.myHp = 100;
   state.damageFlashUntil = 0;
+  state.muzzleFlashes.length = 0;
   input.up = input.down = input.left = input.right = input.shooting = false;
 }
