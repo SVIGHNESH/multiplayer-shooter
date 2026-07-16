@@ -431,6 +431,22 @@ function endGame(room, winner) {
 io.on('connection', (socket) => {
   socket.on('register', ({ name } = {}) => {
     const clean = (typeof name === 'string' && name.trim()) ? name.trim().slice(0, 16) : 'Player';
+    const existingId = socketToPlayer.get(socket.id);
+    const existing = existingId ? players.get(existingId) : null;
+    if (existing) {
+      // Same socket re-registering (e.g. the player edited their name on the
+      // home screen). Keep the stable player id friends invite by; just update
+      // the name in place - do not mint a new id or orphan the old registry entry.
+      existing.name = clean;
+      if (existing.roomCode) {
+        const room = rooms.get(existing.roomCode);
+        const gp = room && room.players.get(existing.id);
+        if (gp) gp.name = clean;
+        if (room) emitRoomUpdate(room);
+      }
+      socket.emit('registered', { playerId: existing.id, name: clean });
+      return;
+    }
     const id = uniquePlayerId();
     players.set(id, { id, name: clean, socketId: socket.id, roomCode: null });
     socketToPlayer.set(socket.id, id);

@@ -67,8 +67,16 @@ function toast(msg) {
 }
 
 function ensureRegistered() {
-  if (state.myId) return true;
   const name = $('name-input').value.trim();
+  if (state.myId) {
+    // Already registered. If the player edited their name (and isn't currently
+    // in a room), push the change so the new name is used for rooms they create
+    // or join - the server keeps the same stable player id.
+    if (!state.roomCode && name && name !== state.myName) {
+      socket.emit('register', { name });
+    }
+    return true;
+  }
   socket.emit('register', { name });
   return false;
 }
@@ -76,11 +84,6 @@ function ensureRegistered() {
 // ===========================================================================
 // Home screen
 // ===========================================================================
-
-$('name-input').addEventListener('input', () => {
-  // Re-register with the new name if we already have an id and are not in a room.
-  state.pendingName = $('name-input').value.trim();
-});
 
 $('btn-create').addEventListener('click', () => {
   if (!ensureRegistered()) { pendingAction = () => socket.emit('createRoom'); return; }

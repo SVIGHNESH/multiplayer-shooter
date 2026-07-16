@@ -30,6 +30,15 @@ async function run(port) {
     check('Alice gets a P- player id', /^P-[A-Z0-9]{4}$/.test(regA.playerId));
     check('Bob gets a distinct player id', regB.playerId && regB.playerId !== regA.playerId);
 
+    // --- Re-registering on the same socket (name change) keeps the stable id ---
+    a.emit('register', { name: 'Alicia' });
+    const reRegA = await once(a, 'registered');
+    check('Renaming keeps the same stable player id', reRegA.playerId === regA.playerId);
+    check('Renaming updates the display name', reRegA.name === 'Alicia');
+    // Restore Alice's name so the rest of the flow reads naturally.
+    a.emit('register', { name: 'Alice' });
+    await once(a, 'registered');
+
     // --- Alice creates a room ---
     a.emit('createRoom');
     const roomA = await once(a, 'roomUpdate');
