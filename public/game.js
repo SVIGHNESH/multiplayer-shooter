@@ -115,6 +115,21 @@ $('btn-copy').addEventListener('click', async () => {
   }
 });
 
+// Copy the local player's own ID so a friend can invite them by ID.
+async function copyMyId(btn) {
+  if (!state.myId) return;
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(state.myId);
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  } catch {
+    toast('Copy failed - select your ID manually.');
+  }
+}
+$('btn-copy-id').addEventListener('click', (e) => copyMyId(e.currentTarget));
+$('btn-copy-id-lobby').addEventListener('click', (e) => copyMyId(e.currentTarget));
+
 $('btn-invite').addEventListener('click', sendInvite);
 $('invite-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendInvite(); });
 

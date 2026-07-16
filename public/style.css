@@ -134,6 +134,12 @@ input[type="text"]:focus {
   margin: -6px 0 18px;
 }
 .you-are strong { color: var(--accent-2); letter-spacing: 1px; }
+.btn-copy-id {
+  padding: 3px 10px;
+  font-size: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
 
 .hint {
   color: var(--muted);
