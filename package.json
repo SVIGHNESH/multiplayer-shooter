@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "smoke": "node test/smoke.js"
+    "smoke": "node test/smoke.js",
+    "test:match": "node test/match.js",
+    "test": "node test/smoke.js && node test/match.js"
   },
   "dependencies": {
     "express": "^4.19.2",

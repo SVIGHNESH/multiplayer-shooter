@@ -19,12 +19,14 @@ const WORLD = { width: 1600, height: 1200 };
 const PLAYER_RADIUS = 18;
 const PLAYER_SPEED = 260; // px/s
 const PLAYER_MAX_HP = 100;
-const RESPAWN_MS = 2500;
+// RESPAWN_MS and KILLS_TO_WIN can be overridden via env for fast, deterministic
+// automated match tests; defaults match the plan's gameplay design.
+const RESPAWN_MS = Number(process.env.RESPAWN_MS) || 2500;
 const FIRE_COOLDOWN_MS = 180;
 const BULLET_SPEED = 700; // px/s
 const BULLET_RADIUS = 4;
 const BULLET_DAMAGE = 25;
-const KILLS_TO_WIN = 15;
+const KILLS_TO_WIN = Number(process.env.KILLS_TO_WIN) || 15;
 const ROOM_MAX_PLAYERS = 8;
 const TICK_HZ = 60;
 const SNAPSHOT_HZ = 30;
