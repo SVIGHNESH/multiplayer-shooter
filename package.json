@@ -9,6 +9,7 @@
     "dev": "node server.js",
     "smoke": "node test/smoke.js",
     "test:match": "node test/match.js",
+    "shots": "node test/shots.js",
     "test": "node test/smoke.js && node test/match.js"
   },
   "dependencies": {
