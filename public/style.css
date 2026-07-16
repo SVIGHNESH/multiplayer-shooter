@@ -208,7 +208,8 @@ input[type="text"]:focus {
 .lobby-note { margin-top: 12px; text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; }
 
 /* ---------- Game ---------- */
-#game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+/* Cursor hidden: the canvas draws its own aim reticle at the mouse position. */
+#game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; }
 
 .hud { position: absolute; inset: 0; pointer-events: none; font-size: 14px; }
 .hud .btn { pointer-events: auto; }

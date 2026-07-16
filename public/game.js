@@ -266,6 +266,9 @@ socket.on('gameStarted', (data) => {
   $('hp-fill').style.background = '#69f0ae';
   $('hp-value').textContent = '100';
   state.scoreboardOpen = false;
+  // Center the aim reticle so it isn't stuck at (0,0) until the first mouse move.
+  mouse.x = window.innerWidth / 2;
+  mouse.y = window.innerHeight / 2;
   showScreen('game');
   resizeCanvas();
 });
@@ -768,6 +771,10 @@ function draw() {
   // Muzzle flashes: brief additive gunfire bursts at each shot's origin.
   drawMuzzleFlashes();
 
+  // Aim reticle + faint line from the player to the cursor, so mouse aim reads
+  // clearly in-world instead of relying only on the thin gun barrel.
+  drawReticle();
+
   // Hit markers at the aim point confirm the local player's shots landed.
   drawHitMarkers();
 
@@ -884,6 +891,55 @@ function drawMuzzleFlashes() {
 }
 
 const HITMARKER_MS = 180;
+// Persistent aim reticle at the cursor plus a faint dashed line from the local
+// player to it. Drawn only while the local player is alive (nothing to aim while
+// dead). Uses cardinal "+" ticks so it never collides with the diagonal "X" the
+// transient hit markers draw at the same point.
+function drawReticle() {
+  const me = playerRenderPos(state.myId);
+  if (!me || !me.alive) return;
+  const mx = mouse.x, my = mouse.y;
+  const px = me.x - camera.x, py = me.y - camera.y;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // Faint aim line from the player toward the cursor.
+  ctx.strokeStyle = 'rgba(220,235,255,0.10)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 9]);
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(mx, my);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Reticle: soft-glowing ring + four cardinal ticks + center dot.
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 3;
+  ctx.strokeStyle = 'rgba(255,235,205,0.9)';
+  ctx.fillStyle = 'rgba(255,235,205,0.9)';
+  ctx.lineWidth = 2;
+
+  const ring = 12, gap = 4, tick = 6;
+  ctx.beginPath();
+  ctx.arc(mx, my, ring, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (const [sx, sy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    ctx.moveTo(mx + sx * (ring - gap), my + sy * (ring - gap));
+    ctx.lineTo(mx + sx * (ring + tick), my + sy * (ring + tick));
+  }
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(mx, my, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function drawHitMarkers() {
   if (!state.hitMarkers.length) return;
   const now = performance.now();
