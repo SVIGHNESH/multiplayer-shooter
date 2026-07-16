@@ -11,8 +11,9 @@
     "test:match": "node test/match.js",
     "test:errors": "node test/errors.js",
     "test:leave": "node test/leave.js",
+    "test:host": "node test/host.js",
     "shots": "node test/shots.js",
-    "test": "node test/smoke.js && node test/match.js && node test/errors.js && node test/leave.js"
+    "test": "node test/smoke.js && node test/match.js && node test/errors.js && node test/leave.js && node test/host.js"
   },
   "dependencies": {
     "express": "^4.19.2",
