@@ -164,6 +164,15 @@ async function newPage(browserWsBase, targetUrl) {
     await host.shot('07-scoreboard');
     await host.eval(`document.getElementById('scoreboard').hidden = true; true`);
 
+    // ---- Damage vignette (force the flash to full strength and capture) ----
+    await host.eval(`
+      state.damageFlashStrength = 0.6;
+      state.damageFlashUntil = performance.now() + 5000;
+      true`);
+    await sleep(120);
+    await host.shot('07b-damage-flash');
+    await host.eval(`state.damageFlashUntil = 0; true`);
+
     // ---- Respawn overlay (simulate a dead local player snapshot) ----
     await host.eval(`document.getElementById('respawn-overlay').hidden = false; document.getElementById('respawn-secs').textContent = '2'; true`);
     await host.shot('08-respawn');

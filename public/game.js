@@ -22,6 +22,10 @@ const state = {
   recvCurr: 0,
   scoreboardOpen: false,
   pendingInvite: null,
+  // Local-player damage feedback.
+  myHp: 100,
+  damageFlashUntil: 0,   // performance.now() timestamp the red vignette fades out
+  damageFlashStrength: 0,
 };
 
 // ===========================================================================
@@ -232,6 +236,8 @@ socket.on('gameStarted', (data) => {
   state.colors = new Map(data.players.map((p) => [p.id, p.color]));
   state.prev = null;
   state.curr = null;
+  state.myHp = 100;
+  state.damageFlashUntil = 0;
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   state.scoreboardOpen = false;
@@ -249,6 +255,19 @@ socket.on('state', (snap) => {
     scores: snap.scores,
   };
   state.recvCurr = performance.now();
+
+  // Trigger a red damage vignette when the local player's health drops.
+  const me = state.curr.players.get(state.myId);
+  if (me) {
+    if (me.alive && me.hp < state.myHp) {
+      const dmg = state.myHp - me.hp;
+      state.damageFlashUntil = performance.now() + 450;
+      state.damageFlashStrength = Math.min(0.6, 0.28 + (dmg / 100) * 0.5);
+    }
+    // Reset the baseline to full while dead so respawning back to 100 HP never flashes.
+    state.myHp = me.alive ? me.hp : 100;
+  }
+
   updateScoreStrip(snap.scores);
   updateScoreboard(snap.scores);
 });
@@ -479,6 +498,20 @@ function draw() {
     }
   }
 
+  // Damage vignette: red glow creeping in from the screen edges, fading out.
+  const nowMs = performance.now();
+  if (nowMs < state.damageFlashUntil) {
+    const remain = (state.damageFlashUntil - nowMs) / 450;
+    const alpha = state.damageFlashStrength * remain;
+    const inner = Math.min(vw, vh) * 0.32;
+    const outer = Math.hypot(vw, vh) * 0.62;
+    const grad = ctx.createRadialGradient(vw / 2, vh / 2, inner, vw / 2, vh / 2, outer);
+    grad.addColorStop(0, 'rgba(255,40,40,0)');
+    grad.addColorStop(1, `rgba(210,20,20,${alpha.toFixed(3)})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, vw, vh);
+  }
+
   // Respawn overlay for local player
   if (me && !me.alive) {
     $('respawn-overlay').hidden = false;
@@ -569,5 +602,7 @@ function resetGameState() {
   state.hostId = null;
   state.arena = null;
   state.prev = state.curr = null;
+  state.myHp = 100;
+  state.damageFlashUntil = 0;
   input.up = input.down = input.left = input.right = input.shooting = false;
 }
