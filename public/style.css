@@ -303,6 +303,8 @@ input[type="text"]:focus {
   font-size: 18px;
   font-weight: 700;
 }
+.killed-by { font-size: 15px; color: var(--danger); font-weight: 400; margin-top: 4px; }
+.killed-by span { font-weight: 700; }
 .respawn-count { font-size: 14px; color: var(--muted); font-weight: 400; margin-top: 6px; }
 
 .quit-btn { position: absolute; bottom: 16px; left: 16px; }

@@ -250,10 +250,24 @@ async function newPage(browserWsBase, targetUrl) {
     await host.shot('07b-damage-flash');
     await host.eval(`state.damageFlashUntil = 0; true`);
 
-    // ---- Respawn overlay (simulate a dead local player snapshot) ----
-    await host.eval(`document.getElementById('respawn-overlay').hidden = false; document.getElementById('respawn-secs').textContent = '2'; true`);
+    // ---- Respawn overlay (freeze the stream, mark the local player dead, and
+    //      name the killer so the draw loop shows the "eliminated by" line) ----
+    await host.eval(`(() => {
+      socket.off('state');
+      const me = state.curr && state.curr.players.get(state.myId);
+      if (me) { me.alive = false; me.hp = 0; me.respawnIn = 2; }
+      state.killedBy = 'Reaper';
+      return !!me;
+    })()`);
+    await sleep(60);
     await host.shot('08-respawn');
-    await host.eval(`document.getElementById('respawn-overlay').hidden = true; true`);
+    await host.eval(`(() => {
+      const me = state.curr && state.curr.players.get(state.myId);
+      if (me) { me.alive = true; me.hp = 100; me.respawnIn = 0; }
+      state.killedBy = null;
+      document.getElementById('respawn-overlay').hidden = true;
+      return true;
+    })()`);
 
     // ---- Drive to game over ----
     for (let i = 0; i < 40; i++) {

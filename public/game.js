@@ -258,6 +258,7 @@ socket.on('gameStarted', (data) => {
   state.impacts.length = 0;
   state.bulletDir.clear();
   state.hitMarkers.length = 0;
+  state.killedBy = null;
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   $('health-hud').hidden = true;
@@ -357,7 +358,7 @@ socket.on('state', (snap) => {
     }
     // Death / respawn transitions get their own audio cues.
     if (state.myAlive && !me.alive) sfxDeath();
-    else if (!state.myAlive && me.alive) sfxRespawn();
+    else if (!state.myAlive && me.alive) { sfxRespawn(); state.killedBy = null; }
     state.myAlive = me.alive;
     // Reset the baseline to full while dead so respawning back to 100 HP never flashes.
     state.myHp = me.alive ? me.hp : 100;
@@ -386,6 +387,10 @@ socket.on('killFeed', (data) => {
   while (feed.children.length > 5) feed.removeChild(feed.firstChild);
   // Reward the local player with a confirm tone for their own eliminations.
   if (state.myName && data.killer === state.myName && data.victim !== state.myName) sfxKill();
+  // Remember who eliminated the local player so the death overlay can name them.
+  if (state.myName && data.victim === state.myName) {
+    state.killedBy = data.killer && data.killer !== state.myName ? data.killer : null;
+  }
 });
 
 socket.on('gameOver', (data) => {
@@ -793,6 +798,12 @@ function draw() {
   if (me && !me.alive) {
     $('respawn-overlay').hidden = false;
     $('respawn-secs').textContent = me.respawnIn;
+    if (state.killedBy) {
+      $('killed-by-name').textContent = state.killedBy;
+      $('killed-by').hidden = false;
+    } else {
+      $('killed-by').hidden = true;
+    }
   } else {
     $('respawn-overlay').hidden = true;
   }
