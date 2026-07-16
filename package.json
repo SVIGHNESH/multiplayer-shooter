@@ -9,8 +9,9 @@
     "dev": "node server.js",
     "smoke": "node test/smoke.js",
     "test:match": "node test/match.js",
+    "test:errors": "node test/errors.js",
     "shots": "node test/shots.js",
-    "test": "node test/smoke.js && node test/match.js"
+    "test": "node test/smoke.js && node test/match.js && node test/errors.js"
   },
   "dependencies": {
     "express": "^4.19.2",
