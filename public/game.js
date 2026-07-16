@@ -751,6 +751,10 @@ function draw() {
   // always tell which way the fight is.
   drawOffscreenIndicators(vw, vh);
 
+  // Corner minimap: the whole arena scaled down with obstacles, every alive
+  // player, and the current viewport box, for at-a-glance spatial awareness.
+  drawMinimap(vw, vh);
+
   // Damage vignette: red glow creeping in from the screen edges, fading out.
   const nowMs = performance.now();
   if (nowMs < state.damageFlashUntil) {
@@ -926,6 +930,75 @@ function drawOffscreenIndicators(vw, vh) {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+}
+
+// Minimap: a scaled-down top-left-origin view of the full arena pinned to the
+// bottom-right corner. Shows obstacles, the current camera viewport, and every
+// alive player (local player as a white-ringed dot), complementing the
+// edge-of-screen arrows with actual positions and distances.
+function drawMinimap(vw, vh) {
+  if (!state.arena || !state.curr) return;
+  const { world, obstacles } = state.arena;
+  const margin = 16;
+  const mapW = 168;
+  const mapH = Math.round((mapW * world.height) / world.width);
+  const x0 = vw - margin - mapW;
+  const y0 = vh - margin - mapH;
+  const sx = mapW / world.width;
+  const sy = mapH / world.height;
+
+  ctx.save();
+
+  // Panel background + border.
+  ctx.beginPath();
+  ctx.roundRect(x0 - 4, y0 - 4, mapW + 8, mapH + 8, 6);
+  ctx.fillStyle = 'rgba(13, 17, 23, 0.74)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(57, 70, 90, 0.9)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Clip everything else to the map rect so dots/viewport never bleed out.
+  ctx.beginPath();
+  ctx.rect(x0, y0, mapW, mapH);
+  ctx.clip();
+
+  // Arena floor.
+  ctx.fillStyle = 'rgba(20, 26, 34, 0.9)';
+  ctx.fillRect(x0, y0, mapW, mapH);
+
+  // Obstacles.
+  ctx.fillStyle = 'rgba(70, 84, 104, 0.85)';
+  for (const o of obstacles) {
+    ctx.fillRect(x0 + o.x * sx, y0 + o.y * sy, o.w * sx, o.h * sy);
+  }
+
+  // Current viewport rectangle.
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + camera.x * sx, y0 + camera.y * sy, vw * sx, vh * sy);
+
+  // Players (alive only); local player gets a white ring so it stands out.
+  for (const id of state.curr.players.keys()) {
+    const rp = playerRenderPos(id);
+    if (!rp || !rp.alive) continue;
+    const px = x0 + rp.x * sx;
+    const py = y0 + rp.y * sy;
+    const isMe = id === state.myId;
+    ctx.beginPath();
+    ctx.arc(px, py, isMe ? 3.2 : 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = state.colors.get(id) || '#ffffff';
+    ctx.fill();
+    if (isMe) {
+      ctx.beginPath();
+      ctx.arc(px, py, 4.6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
 }
 
 function hexToRgba(hex, a) {
