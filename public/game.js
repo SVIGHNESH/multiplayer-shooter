@@ -212,6 +212,9 @@ socket.on('roomUpdate', (room) => {
 
   const amHost = room.hostId === state.myId;
   $('invite-col').style.display = amHost ? '' : 'none';
+  // With the invite column hidden for non-hosts, collapse the two-column grid so
+  // the roster spans the full panel width instead of leaving the right half blank.
+  $('lobby-body').classList.toggle('solo', !amHost);
   const startBtn = $('btn-start');
   startBtn.style.display = amHost ? '' : 'none';
   startBtn.disabled = !room.canStart;
