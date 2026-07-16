@@ -250,6 +250,10 @@ socket.on('gameStarted', (data) => {
   state.bulletDir.clear();
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
+  $('health-hud').hidden = true;
+  $('hp-fill').style.width = '100%';
+  $('hp-fill').style.background = '#69f0ae';
+  $('hp-value').textContent = '100';
   state.scoreboardOpen = false;
   showScreen('game');
   resizeCanvas();
@@ -333,11 +337,20 @@ socket.on('state', (snap) => {
     }
     // Reset the baseline to full while dead so respawning back to 100 HP never flashes.
     state.myHp = me.alive ? me.hp : 100;
+    updateHealthHud(me);
   }
 
   updateScoreStrip(snap.scores);
   updateScoreboard(snap.scores);
 });
+
+function updateHealthHud(me) {
+  const hp = Math.max(0, Math.min(100, Math.round(me.hp)));
+  const frac = hp / 100;
+  $('hp-fill').style.width = frac * 100 + '%';
+  $('hp-fill').style.background = frac > 0.5 ? '#69f0ae' : frac > 0.25 ? '#ffd740' : '#ff5252';
+  $('hp-value').textContent = hp;
+}
 
 socket.on('killFeed', (data) => {
   const feed = $('kill-feed');
@@ -624,6 +637,9 @@ function draw() {
   } else {
     $('respawn-overlay').hidden = true;
   }
+
+  // Health HUD is only meaningful while the local player is alive in the match.
+  $('health-hud').hidden = !(me && me.alive);
 }
 
 const IMPACT_MS = 200;
@@ -791,4 +807,5 @@ function resetGameState() {
   state.impacts.length = 0;
   state.bulletDir.clear();
   input.up = input.down = input.left = input.right = input.shooting = false;
+  $('health-hud').hidden = true;
 }
