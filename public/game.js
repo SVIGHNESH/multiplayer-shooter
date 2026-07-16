@@ -29,6 +29,10 @@ const state = {
   // Muzzle flashes: short-lived gunfire bursts at a shooter's barrel, spawned
   // when a new bullet id first appears in a snapshot.
   muzzleFlashes: [],     // { x, y, born, color }
+  // Bullet impacts: short-lived sparks where a bullet was removed (hit a wall,
+  // obstacle, or player). Detected when a bullet id disappears from the snapshot.
+  impacts: [],           // { x, y, dx, dy, born, color }
+  bulletDir: new Map(),  // bullet id -> { dx, dy } unit travel direction
 };
 
 // ===========================================================================
@@ -242,6 +246,8 @@ socket.on('gameStarted', (data) => {
   state.myHp = 100;
   state.damageFlashUntil = 0;
   state.muzzleFlashes.length = 0;
+  state.impacts.length = 0;
+  state.bulletDir.clear();
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   state.scoreboardOpen = false;
@@ -276,6 +282,46 @@ socket.on('state', (snap) => {
     });
   }
   if (state.muzzleFlashes.length > 40) state.muzzleFlashes.splice(0, state.muzzleFlashes.length - 40);
+
+  // Bullet impacts: track each bullet's travel direction across snapshots, then
+  // when an id disappears (bullets are only ever removed by hitting a wall,
+  // obstacle, or player) spawn a spark burst at its last position, sprayed back
+  // against its travel direction.
+  const currBullets = new Map();
+  for (const b of snap.bullets) currBullets.set(b.id, b);
+  const prevBulletMap = new Map();
+  if (state.prev) for (const pb of state.prev.bullets) prevBulletMap.set(pb.id, pb);
+  // Update stored directions for bullets seen in both snapshots.
+  for (const [id, b] of currBullets) {
+    const pb = prevBulletMap.get(id);
+    if (!pb) continue;
+    const dx = b.x - pb.x;
+    const dy = b.y - pb.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.5) state.bulletDir.set(id, { dx: dx / d, dy: dy / d });
+  }
+  // Any bullet in the previous snapshot but gone now hit something.
+  for (const [id, pb] of prevBulletMap) {
+    if (currBullets.has(id)) continue;
+    let dir = state.bulletDir.get(id);
+    if (!dir) {
+      // Bullet lived less than two snapshots, so fall back to the shooter's aim.
+      const owner = state.curr.players.get(pb.ownerId);
+      dir = owner ? { dx: Math.cos(owner.angle), dy: Math.sin(owner.angle) } : { dx: 0, dy: 0 };
+    }
+    state.impacts.push({
+      // Nudge the spark forward toward the real collision point, which is ~1
+      // snapshot ahead of the last position we saw the bullet at.
+      x: pb.x + dir.dx * 8,
+      y: pb.y + dir.dy * 8,
+      dx: dir.dx,
+      dy: dir.dy,
+      born: state.recvCurr,
+      color: state.colors.get(pb.ownerId) || '#ffd740',
+    });
+    state.bulletDir.delete(id);
+  }
+  if (state.impacts.length > 40) state.impacts.splice(0, state.impacts.length - 40);
 
   // Trigger a red damage vignette when the local player's health drops.
   const me = state.curr.players.get(state.myId);
@@ -551,6 +597,9 @@ function draw() {
     }
   }
 
+  // Bullet impact sparks where projectiles hit cover or players.
+  drawImpacts();
+
   // Muzzle flashes: brief additive gunfire bursts at each shot's origin.
   drawMuzzleFlashes();
 
@@ -575,6 +624,49 @@ function draw() {
   } else {
     $('respawn-overlay').hidden = true;
   }
+}
+
+const IMPACT_MS = 200;
+function drawImpacts() {
+  if (!state.impacts.length) return;
+  const now = performance.now();
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  const kept = [];
+  for (const f of state.impacts) {
+    const age = now - f.born;
+    if (age >= IMPACT_MS) continue;
+    kept.push(f);
+    const t = 1 - age / IMPACT_MS;      // 1 -> 0 over the spark lifetime
+    const x = f.x - camera.x;
+    const y = f.y - camera.y;
+    // Small hot flash at the point of impact.
+    const r = 3 + (1 - t) * 5;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(255,255,235,${(0.85 * t).toFixed(3)})`);
+    grad.addColorStop(0.5, hexToRgba(f.color, 0.6 * t));
+    grad.addColorStop(1, hexToRgba(f.color, 0));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // A few spark shards spraying back against the bullet's travel direction.
+    const base = Math.atan2(-f.dy, -f.dx);
+    ctx.strokeStyle = hexToRgba(f.color, 0.8 * t);
+    ctx.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i++) {
+      const a = base + i * 0.55;
+      const len = (7 + (1 - t) * 9) * (0.7 + Math.abs(i) * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      ctx.stroke();
+    }
+  }
+  ctx.lineCap = 'butt';
+  ctx.restore();
+  state.impacts = kept;
 }
 
 const MUZZLE_MS = 110;
@@ -696,5 +788,7 @@ function resetGameState() {
   state.myHp = 100;
   state.damageFlashUntil = 0;
   state.muzzleFlashes.length = 0;
+  state.impacts.length = 0;
+  state.bulletDir.clear();
   input.up = input.down = input.left = input.right = input.shooting = false;
 }

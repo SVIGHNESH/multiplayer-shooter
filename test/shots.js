@@ -181,6 +181,22 @@ async function newPage(browserWsBase, targetUrl) {
     await sleep(25);
     await host.shot('07c-muzzle-flash');
 
+    // ---- Impact sparks (inject bullet-hit bursts near the local player) ----
+    const impactN = await host.eval(`
+      const me = state.curr && state.curr.players.get(state.myId);
+      if (me) {
+        const now = performance.now();
+        const ox = me.x < 800 ? 60 : -60;
+        const oy = me.y < 600 ? 60 : -60;
+        // Sparks spray back against the incoming bullet direction.
+        state.impacts.push({ x: me.x + ox, y: me.y, dx: -Math.sign(ox), dy: 0, born: now, color: '#ffd740' });
+        state.impacts.push({ x: me.x, y: me.y + oy, dx: 0, dy: -Math.sign(oy), born: now, color: '#40c4ff' });
+      }
+      state.impacts.length`);
+    console.log('  impact sparks queued:', impactN);
+    await sleep(40);
+    await host.shot('07d-impact-sparks');
+
     // ---- Damage vignette (force the flash to full strength and capture) ----
     await host.eval(`
       state.damageFlashStrength = 0.6;
