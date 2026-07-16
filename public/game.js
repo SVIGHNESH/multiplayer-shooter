@@ -428,6 +428,9 @@ socket.on('playerLeft', (data) => {
 });
 
 socket.on('gameOver', (data) => {
+  // Close the Tab scoreboard so a player holding Tab as the winning kill lands
+  // doesn't leave it rendering (and bleeding through) behind the standings card.
+  toggleScoreboard(false);
   $('winner-line').textContent = `${data.winner.name} wins!`;
   const body = $('standings-body');
   body.innerHTML = '';

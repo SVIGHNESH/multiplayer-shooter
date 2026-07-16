@@ -276,6 +276,11 @@ async function newPage(browserWsBase, targetUrl) {
     })()`);
 
     // ---- Drive to game over ----
+    // Open the Tab scoreboard first: a player commonly holds Tab watching the
+    // frag race as it hits match point, so the winning kill can land with the
+    // centered scoreboard open. The gameOver handler must close it, or it bleeds
+    // through behind the equally-centered standings card (regression guard below).
+    await host.eval(`toggleScoreboard(true); true`);
     for (let i = 0; i < 40; i++) {
       const over = await host.eval(`document.getElementById('gameover').hidden === false`);
       if (over) break;
@@ -286,15 +291,22 @@ async function newPage(browserWsBase, targetUrl) {
     }
     let isOver = await host.eval(`document.getElementById('gameover').hidden === false`);
     if (!isOver) {
-      // Fall back to rendering the overlay directly so the surface is still verified.
-      await host.eval(`
-        document.getElementById('winner-line').textContent = 'Ghost wins!';
-        const rows = [['1','Ghost','3','1'],['2','Reaper','1','3']];
-        document.getElementById('standings-body').innerHTML =
-          rows.map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('');
-        document.getElementById('gameover').hidden = false;
-        true`);
+      // Fall back to firing the real gameOver handler so the surface (and the
+      // scoreboard-close behavior) is still exercised when the bots don't converge.
+      await host.eval(`(() => {
+        const std = [
+          { id: state.myId, name: 'Ghost', color: (state.colors && state.colors[state.myId]) || '#40c4ff', kills: 3, deaths: 1 },
+          { id: 'P-XXXX', name: 'Reaper', color: '#ff5252', kills: 1, deaths: 3 },
+        ];
+        socket.listeners('gameOver')[0]({ winner: std[0], standings: std });
+        return true;
+      })()`);
     }
+    const sbLeaked = await host.eval(`document.getElementById('scoreboard').hidden === false`);
+    if (sbLeaked) {
+      throw new Error('Tab scoreboard still rendering behind the game-over overlay');
+    }
+    console.log('  guard: Tab scoreboard closed on game over (no bleed-through)');
     await host.shot('09-gameover');
 
     // ---- Invite popup (render on guest by triggering the handler) ----
