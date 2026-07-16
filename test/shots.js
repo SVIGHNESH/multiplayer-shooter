@@ -165,7 +165,7 @@ async function newPage(browserWsBase, targetUrl) {
     await host.eval(`document.getElementById('scoreboard').hidden = true; true`);
 
     // ---- Muzzle flash (inject fresh flashes anchored to the local player) ----
-    const flashN = await host.eval(`
+    const flashN = await host.eval(`(() => {
       const me = state.curr && state.curr.players.get(state.myId);
       if (me) {
         const now = performance.now();
@@ -176,13 +176,14 @@ async function newPage(browserWsBase, targetUrl) {
         state.muzzleFlashes.push({ x: me.x, y: me.y, born: now, color: '#ffd740' });
         state.muzzleFlashes.push({ x: me.x + ox, y: me.y + oy, born: now, color: '#40c4ff' });
       }
-      state.muzzleFlashes.length`);
+      return state.muzzleFlashes.length;
+    })()`);
     console.log('  muzzle flashes queued:', flashN);
     await sleep(25);
     await host.shot('07c-muzzle-flash');
 
     // ---- Impact sparks (inject bullet-hit bursts near the local player) ----
-    const impactN = await host.eval(`
+    const impactN = await host.eval(`(() => {
       const me = state.curr && state.curr.players.get(state.myId);
       if (me) {
         const now = performance.now();
@@ -192,10 +193,25 @@ async function newPage(browserWsBase, targetUrl) {
         state.impacts.push({ x: me.x + ox, y: me.y, dx: -Math.sign(ox), dy: 0, born: now, color: '#ffd740' });
         state.impacts.push({ x: me.x, y: me.y + oy, dx: 0, dy: -Math.sign(oy), born: now, color: '#40c4ff' });
       }
-      state.impacts.length`);
+      return state.impacts.length;
+    })()`);
     console.log('  impact sparks queued:', impactN);
     await sleep(40);
     await host.shot('07d-impact-sparks');
+
+    // ---- Hit marker (crosshair X at the aim point on a confirmed enemy hit) ----
+    const hitN = await host.eval(`(() => {
+      // Draw the marker at the aim point; place it at screen centre for the shot.
+      mouse.x = window.innerWidth / 2;
+      mouse.y = window.innerHeight / 2;
+      const now = performance.now();
+      state.hitMarkers.push({ born: now, killed: false });
+      state.hitMarkers.push({ born: now, killed: true });
+      return state.hitMarkers.length;
+    })()`);
+    console.log('  hit markers queued:', hitN);
+    await sleep(30);
+    await host.shot('07e-hit-marker');
 
     // ---- Damage vignette (force the flash to full strength and capture) ----
     await host.eval(`

@@ -34,6 +34,10 @@ const state = {
   // obstacle, or player). Detected when a bullet id disappears from the snapshot.
   impacts: [],           // { x, y, dx, dy, born, color }
   bulletDir: new Map(),  // bullet id -> { dx, dy } unit travel direction
+  // Hit markers: brief crosshair X drawn at the aim point when one of the local
+  // player's bullets damages an enemy (server-confirmed, since the client can't
+  // tell a non-lethal hit apart from a bullet that hit cover).
+  hitMarkers: [],        // { born, killed }
 };
 
 // ===========================================================================
@@ -250,6 +254,7 @@ socket.on('gameStarted', (data) => {
   state.muzzleFlashes.length = 0;
   state.impacts.length = 0;
   state.bulletDir.clear();
+  state.hitMarkers.length = 0;
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   $('health-hud').hidden = true;
@@ -390,6 +395,12 @@ socket.on('gameOver', (data) => {
     body.appendChild(tr);
   });
   $('gameover').hidden = false;
+});
+
+socket.on('hitConfirm', (data) => {
+  state.hitMarkers.push({ born: performance.now(), killed: !!(data && data.killed) });
+  if (state.hitMarkers.length > 12) state.hitMarkers.splice(0, state.hitMarkers.length - 12);
+  sfxHit(!!(data && data.killed));
 });
 
 socket.on('errorMsg', (data) => toast(data.message || 'Something went wrong.'));
@@ -548,6 +559,10 @@ function sfxShoot(vol) {
 }
 function sfxHurt() {
   tone({ type: 'sawtooth', freq: 220, freqEnd: 90, dur: 0.16, gain: 0.28 });
+}
+function sfxHit(killed) {
+  // A crisp tick that confirms a shot landed; a touch higher/brighter on a kill.
+  tone({ type: 'square', freq: killed ? 1320 : 1040, dur: 0.05, gain: 0.18 });
 }
 function sfxKill() {
   tone({ type: 'square', freq: 660, dur: 0.08, gain: 0.22 });
@@ -728,6 +743,9 @@ function draw() {
   // Muzzle flashes: brief additive gunfire bursts at each shot's origin.
   drawMuzzleFlashes();
 
+  // Hit markers at the aim point confirm the local player's shots landed.
+  drawHitMarkers();
+
   // Damage vignette: red glow creeping in from the screen edges, fading out.
   const nowMs = performance.now();
   if (nowMs < state.damageFlashUntil) {
@@ -825,6 +843,35 @@ function drawMuzzleFlashes() {
   state.muzzleFlashes = kept;
 }
 
+const HITMARKER_MS = 180;
+function drawHitMarkers() {
+  if (!state.hitMarkers.length) return;
+  const now = performance.now();
+  const kept = [];
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const h of state.hitMarkers) {
+    const age = now - h.born;
+    if (age >= HITMARKER_MS) continue;
+    kept.push(h);
+    const t = 1 - age / HITMARKER_MS;   // 1 -> 0 over the marker lifetime
+    // Classic four-tick "X" bracketing the crosshair; red-gold on a kill, white otherwise.
+    const gap = 4 + (1 - t) * 3;        // ticks flick outward as they fade
+    const len = 7;
+    ctx.strokeStyle = h.killed ? `rgba(255,80,60,${t.toFixed(3)})` : `rgba(255,255,255,${(0.9 * t).toFixed(3)})`;
+    ctx.lineWidth = h.killed ? 3 : 2.2;
+    ctx.beginPath();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      ctx.moveTo(mouse.x + sx * gap, mouse.y + sy * gap);
+      ctx.lineTo(mouse.x + sx * (gap + len), mouse.y + sy * (gap + len));
+    }
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  ctx.restore();
+  state.hitMarkers = kept;
+}
+
 function hexToRgba(hex, a) {
   const h = hex.replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
@@ -918,6 +965,7 @@ function resetGameState() {
   state.muzzleFlashes.length = 0;
   state.impacts.length = 0;
   state.bulletDir.clear();
+  state.hitMarkers.length = 0;
   input.up = input.down = input.left = input.right = input.shooting = false;
   $('health-hud').hidden = true;
 }

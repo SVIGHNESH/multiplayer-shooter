@@ -350,6 +350,15 @@ function tickRoom(room) {
 
 function applyDamage(room, victim, shooterId, now) {
   victim.hp -= BULLET_DAMAGE;
+
+  // Tell the shooter their shot connected so the client can pop a hit marker.
+  // (Only the server knows non-lethal hits; the client can't derive them.)
+  if (shooterId !== victim.id) {
+    const killed = victim.hp <= 0;
+    const shooterSocketId = players.get(shooterId)?.socketId;
+    if (shooterSocketId) io.to(shooterSocketId).emit('hitConfirm', { killed });
+  }
+
   if (victim.hp > 0) return;
 
   victim.hp = 0;

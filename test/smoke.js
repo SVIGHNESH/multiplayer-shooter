@@ -86,10 +86,16 @@ async function run(port) {
     // (stuck-detection + snapshot resilience) so the kill lands reliably even
     // when spawns place cover between them or the machine is under load.
     let killed = false;
+    // The server sends the shooter a hitConfirm each time their bullet damages an
+    // enemy, with killed:true on the lethal shot - the client uses it for hit markers.
+    const hits = [];
+    a.on('hitConfirm', (h) => hits.push(h));
     const killFeedP = once(a, 'killFeed', 30000).then(() => { killed = true; }).catch(() => {});
     await hunt(a, regA.playerId, regB.playerId, () => killed, 25000);
     await Promise.race([killFeedP, wait(500)]);
     check('A kill was registered (killFeed fired)', killed);
+    check('Shooter received hitConfirm events for landed shots', hits.length > 0);
+    check('A hitConfirm reported the lethal shot (killed:true)', hits.some((h) => h && h.killed === true));
 
     const finalSnap = await once(a, 'state');
     const aliceScore = finalSnap.scores.find((p) => p.id === regA.playerId);
