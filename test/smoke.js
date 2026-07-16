@@ -6,6 +6,7 @@
 
 const { io } = require('socket.io-client');
 const { server } = require('../server');
+const { once, wait, hunt } = require('./helpers');
 
 const PASS = [];
 const FAIL = [];
@@ -13,20 +14,6 @@ const FAIL = [];
 function check(name, cond) {
   (cond ? PASS : FAIL).push(name);
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}`);
-}
-
-function once(socket, event, timeout = 4000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout waiting for "${event}"`)), timeout);
-    socket.once(event, (data) => {
-      clearTimeout(timer);
-      resolve(data);
-    });
-  });
-}
-
-function wait(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function run(port) {
@@ -93,30 +80,14 @@ async function run(port) {
     check('Player moves right when input sent', after.x > before.x);
     a.emit('input', { right: false, angle: 0, shooting: false });
 
-    // --- Shooting + kill credit: line Alice up on Bob and fire ---
-    // Force a deterministic kill by shooting many bullets while aimed; we verify
-    // that a killFeed fires and Alice's kill count increases in the scoreboard.
-    // Aim Alice at Bob's current position each tick.
+    // --- Shooting + kill credit: chase Bob down and fire ---
+    // We verify that a killFeed fires and Alice ends up with a scoreboard entry.
+    // Alice hunts the passive Bob using the shared, obstacle-aware hunt() driver
+    // (stuck-detection + snapshot resilience) so the kill lands reliably even
+    // when spawns place cover between them or the machine is under load.
     let killed = false;
-    const killFeedP = once(a, 'killFeed', 8000).then(() => { killed = true; });
-    // Teleport-free approach: aim and continuously shoot; positions are random,
-    // so nudge Alice toward Bob and keep firing.
-    for (let i = 0; i < 60 && !killed; i++) {
-      const s = await once(a, 'state');
-      const alice = s.players.find((p) => p.id === regA.playerId);
-      const bob = s.players.find((p) => p.id === regB.playerId);
-      if (alice && bob && alice.alive) {
-        const ang = Math.atan2(bob.y - alice.y, bob.x - alice.x);
-        // Move toward bob and shoot.
-        const dx = bob.x - alice.x;
-        const dy = bob.y - alice.y;
-        a.emit('input', {
-          right: dx > 20, left: dx < -20, down: dy > 20, up: dy < -20,
-          angle: ang, shooting: true,
-        });
-      }
-      await wait(50);
-    }
+    const killFeedP = once(a, 'killFeed', 30000).then(() => { killed = true; }).catch(() => {});
+    await hunt(a, regA.playerId, regB.playerId, () => killed, 25000);
     await Promise.race([killFeedP, wait(500)]);
     check('A kill was registered (killFeed fired)', killed);
 

@@ -12,6 +12,7 @@ process.env.RESPAWN_MS = '300';
 
 const { io } = require('socket.io-client');
 const { server } = require('../server');
+const { once, wait, hunt } = require('./helpers');
 
 const KILLS_TO_WIN = Number(process.env.KILLS_TO_WIN);
 
@@ -21,67 +22,6 @@ const FAIL = [];
 function check(name, cond) {
   (cond ? PASS : FAIL).push(name);
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}`);
-}
-
-function once(socket, event, timeout = 8000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout waiting for "${event}"`)), timeout);
-    socket.once(event, (data) => {
-      clearTimeout(timer);
-      resolve(data);
-    });
-  });
-}
-
-function wait(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// Drive `hunter` toward `prey` while continuously firing, until `done()` is true
-// or the deadline passes. Reads live state snapshots to aim and chase. Includes
-// stuck-detection: when the hunter wedges against an obstacle (position barely
-// changes while it intends to move), it strafes to get around cover, so the test
-// resolves reliably regardless of random spawn placement.
-async function hunt(hunter, hunterId, preyId, done, deadlineMs = 40000) {
-  const start = Date.now();
-  let lastX = null, lastY = null, stuckTicks = 0, dodge = 0;
-  while (!done() && Date.now() - start < deadlineMs) {
-    let s;
-    try {
-      s = await once(hunter, 'state', 4000);
-    } catch {
-      break;
-    }
-    const me = s.players.find((p) => p.id === hunterId);
-    const prey = s.players.find((p) => p.id === preyId);
-    if (me && prey && me.alive) {
-      const dx = prey.x - me.x;
-      const dy = prey.y - me.y;
-
-      if (lastX !== null) {
-        const moved = Math.hypot(me.x - lastX, me.y - lastY);
-        if (moved < 3) stuckTicks++; else stuckTicks = 0;
-      }
-      lastX = me.x; lastY = me.y;
-
-      let cmd = { right: dx > 20, left: dx < -20, down: dy > 20, up: dy < -20 };
-      if (stuckTicks >= 3) {
-        // Wedged against cover: strafe perpendicular to the pursuit direction
-        // for a burst of ticks to slide around the obstacle.
-        if (dodge <= 0) dodge = 8;
-        const perpHorizontal = Math.abs(dx) < Math.abs(dy);
-        const sign = (dodge % 2 === 0) ? 1 : -1;
-        cmd = perpHorizontal
-          ? { right: sign > 0, left: sign < 0, up: false, down: false }
-          : { up: sign > 0, down: sign < 0, left: false, right: false };
-      }
-      if (dodge > 0) dodge--;
-
-      hunter.emit('input', { ...cmd, angle: Math.atan2(dy, dx), shooting: true });
-    }
-    await wait(40);
-  }
-  hunter.emit('input', { right: false, left: false, down: false, up: false, angle: 0, shooting: false });
 }
 
 async function playMatch(a, aId, b, bId) {
