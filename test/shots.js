@@ -213,6 +213,34 @@ async function newPage(browserWsBase, targetUrl) {
     await sleep(30);
     await host.shot('07e-hit-marker');
 
+    // ---- Off-screen enemy indicators (inject far-away alive enemies) ----
+    const arrowN = await host.eval(`(() => {
+      if (!state.curr) return 0;
+      // Freeze the snapshot stream so a fresh 'state' snapshot doesn't wipe the
+      // injected fakes before the screenshot (the gameOver event is separate, so
+      // the later drive-to-game-over still works).
+      socket.off('state');
+      // Place synthetic enemies at the arena corners so at least those far from
+      // the camera fall off-screen and produce edge arrows.
+      const corners = [[70,70,'#40c4ff'],[1530,70,'#ff5252'],[70,1130,'#69f0ae'],[1530,1130,'#ffd740']];
+      let n = 0;
+      corners.forEach((c, i) => {
+        const id = 'P-FAKE' + i;
+        state.curr.players.set(id, { id, x: c[0], y: c[1], angle: 0, hp: 100, alive: true, respawnIn: 0 });
+        state.colors.set(id, c[2]);
+        n++;
+      });
+      return n;
+    })()`);
+    console.log('  synthetic off-screen enemies:', arrowN);
+    await sleep(40);
+    await host.shot('07f-offscreen-arrows');
+    // Remove the fakes so they don't pollute later captures.
+    await host.eval(`(() => {
+      for (let i = 0; i < 4; i++) { state.curr && state.curr.players.delete('P-FAKE' + i); state.colors.delete('P-FAKE' + i); }
+      return true;
+    })()`);
+
     // ---- Damage vignette (force the flash to full strength and capture) ----
     await host.eval(`
       state.damageFlashStrength = 0.6;

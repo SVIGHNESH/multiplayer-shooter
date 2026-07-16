@@ -746,6 +746,11 @@ function draw() {
   // Hit markers at the aim point confirm the local player's shots landed.
   drawHitMarkers();
 
+  // Edge-of-screen arrows pointing toward any alive enemy currently off-screen,
+  // so a 1600x1200 arena that overflows the viewport stays legible - you can
+  // always tell which way the fight is.
+  drawOffscreenIndicators(vw, vh);
+
   // Damage vignette: red glow creeping in from the screen edges, fading out.
   const nowMs = performance.now();
   if (nowMs < state.damageFlashUntil) {
@@ -870,6 +875,57 @@ function drawHitMarkers() {
   ctx.lineCap = 'butt';
   ctx.restore();
   state.hitMarkers = kept;
+}
+
+function drawOffscreenIndicators(vw, vh) {
+  if (!state.curr) return;
+  const meRp = playerRenderPos(state.myId);
+  const margin = 34;                       // keep arrows fully inside the edge
+  const cx = vw / 2, cy = vh / 2;
+  const halfW = Math.max(10, vw / 2 - margin);
+  const halfH = Math.max(10, vh / 2 - margin);
+  for (const id of state.curr.players.keys()) {
+    if (id === state.myId) continue;
+    const rp = playerRenderPos(id);
+    if (!rp || !rp.alive) continue;
+    const sx = rp.x - camera.x;
+    const sy = rp.y - camera.y;
+    if (sx >= 0 && sx <= vw && sy >= 0 && sy <= vh) continue; // on screen already
+    // Direction from the local player (screen center) toward the enemy.
+    const dx = sx - cx, dy = sy - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) continue;
+    const ux = dx / dist, uy = dy / dist;
+    // March out to where that ray meets the inset viewport rectangle.
+    const scale = Math.min(
+      Math.abs(ux) > 1e-4 ? halfW / Math.abs(ux) : Infinity,
+      Math.abs(uy) > 1e-4 ? halfH / Math.abs(uy) : Infinity,
+    );
+    const px = cx + ux * scale;
+    const py = cy + uy * scale;
+    const color = state.colors.get(id) || '#ffffff';
+    // Fade far-away enemies so nearby threats read as more urgent.
+    const worldDist = meRp ? Math.hypot(rp.x - meRp.x, rp.y - meRp.y) : 0;
+    const alpha = Math.max(0.32, Math.min(0.95, 1 - worldDist / 2600));
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(Math.atan2(uy, ux));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-7, -8);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-7, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function hexToRgba(hex, a) {
