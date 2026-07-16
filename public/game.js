@@ -409,6 +409,23 @@ socket.on('disconnect', () => {
   toast('Disconnected from server.');
 });
 
+// On a transient network drop, Socket.IO auto-reconnects with a brand-new server
+// connection, but the server discards a player's identity and room on disconnect.
+// Without this, the client keeps its now-orphaned id and freezes on the lobby/game
+// screen forever (no snapshots arrive, every action is silently rejected). Recover
+// by re-registering for a fresh working session and dropping back to home.
+socket.on('connect', () => {
+  if (!state.myId) return; // first connection - nothing to restore
+  const wasEngaged = screens.lobby.classList.contains('active') || screens.game.classList.contains('active');
+  const name = state.myName || $('name-input').value.trim();
+  state.myId = null;
+  pendingAction = null;
+  resetGameState();
+  showScreen('home');
+  socket.emit('register', { name });
+  if (wasEngaged) toast('Reconnected - your match was ended. Create or join a room to play again.');
+});
+
 // ===========================================================================
 // HUD updates
 // ===========================================================================
