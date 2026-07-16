@@ -244,8 +244,28 @@ input[type="text"]:focus {
   border-radius: 8px;
   padding: 8px 12px;
 }
-.score-strip .s { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.score-strip .s { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--muted); }
 .score-strip .s .dot { width: 10px; height: 10px; border-radius: 50%; }
+.score-strip .s.leader { color: var(--text); }
+
+/* Frag-limit chip: the win target, and a pulsing MATCH POINT when the leader is
+   one kill from ending the match. */
+.score-strip .goal {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.score-strip .goal.match-point {
+  color: var(--danger);
+  letter-spacing: 0.5px;
+  animation: match-pulse 0.9s ease-in-out infinite;
+}
+@keyframes match-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 .scoreboard {
   position: absolute;

@@ -387,12 +387,28 @@ socket.on('disconnect', () => {
 function updateScoreStrip(scores) {
   const strip = $('score-strip');
   strip.innerHTML = '';
+  const target = state.arena && state.arena.killsToWin;
+  const leaderKills = scores.length ? Math.max(...scores.map((s) => s.kills)) : 0;
+  // Match point: the leader is a single kill away from winning the match.
+  const matchPoint = !!target && leaderKills >= target - 1 && leaderKills < target;
+
   for (const s of scores) {
     const div = document.createElement('div');
-    div.className = 's';
+    // Mark whoever currently leads so the frag race is readable at a glance.
+    const isLeader = !!target && leaderKills > 0 && s.kills === leaderKills;
+    div.className = 's' + (isLeader ? ' leader' : '');
     div.innerHTML = `<span class="dot" style="background:${s.color}"></span>${s.kills}`;
     div.title = `${s.name}: ${s.kills} kills / ${s.deaths} deaths`;
     strip.appendChild(div);
+  }
+
+  // Frag-limit chip so players always see the win target and feel the tension as
+  // the leader closes in (the server sends killsToWin but nothing showed it).
+  if (target) {
+    const goal = document.createElement('div');
+    goal.className = 'goal' + (matchPoint ? ' match-point' : '');
+    goal.textContent = matchPoint ? `MATCH POINT ${leaderKills}/${target}` : `/ ${target}`;
+    strip.appendChild(goal);
   }
 }
 
