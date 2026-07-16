@@ -516,14 +516,6 @@ function drawPlayer(id, rp, radius) {
   const roster = state.arena.players.find((p) => p.id === id);
   const name = roster ? roster.name : id;
 
-  // Barrel
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + Math.cos(rp.angle) * (radius + 12), y + Math.sin(rp.angle) * (radius + 12));
-  ctx.stroke();
-
   // Body
   ctx.beginPath();
   ctx.fillStyle = color;
@@ -534,6 +526,19 @@ function drawPlayer(id, rp, radius) {
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
   }
+
+  // Barrel: drawn on top of the body in a dark gunmetal so the aim direction
+  // reads clearly against the player's own colour, extending past the body.
+  const cos = Math.cos(rp.angle);
+  const sin = Math.sin(rp.angle);
+  ctx.strokeStyle = '#11161d';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(x + cos * (radius - 4), y + sin * (radius - 4));
+  ctx.lineTo(x + cos * (radius + 14), y + sin * (radius + 14));
+  ctx.stroke();
+  ctx.lineCap = 'butt';
 
   // Name
   ctx.fillStyle = '#e6edf3';
