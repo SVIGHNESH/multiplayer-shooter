@@ -396,6 +396,16 @@ input[type="text"]:focus {
 #winner-line { color: var(--good); }
 .standings { margin: 8px 0 20px; }
 .standings td:not(:nth-child(2)), .standings th:not(:nth-child(2)) { text-align: center; }
+/* Winner (top) row gets a gold accent; the local player's row is highlighted
+   so they can find their own placement at a glance among up to 8 players. */
+.standings tr.winner td { color: #ffd54a; font-weight: 700; }
+.standings tr.me td {
+  background: rgba(64, 196, 255, 0.14);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.standings tr.me td:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.standings tr.me td:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.standings .you { color: var(--accent); font-weight: 600; }
 .popup-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
 
 /* ---------- Toast ---------- */

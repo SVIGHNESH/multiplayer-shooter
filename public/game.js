@@ -415,7 +415,18 @@ socket.on('gameOver', (data) => {
   body.innerHTML = '';
   data.standings.forEach((p, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${escapeHtml(p.name)}</td><td>${p.kills}</td><td>${p.deaths}</td>`;
+    // Match the live scoreboard's legibility: color dot + "(you)" marker, and
+    // highlight the local player's row so they can spot their placement at a
+    // glance on the results screen (winner row also gets a gold accent).
+    const cls = [];
+    if (i === 0) cls.push('winner');
+    if (p.id === state.myId) cls.push('me');
+    tr.className = cls.join(' ');
+    const you = p.id === state.myId ? ' <span class="you">(you)</span>' : '';
+    const dot = `<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span>`;
+    tr.innerHTML =
+      `<td>${i + 1}</td><td>${dot}${escapeHtml(p.name)}${you}</td>` +
+      `<td>${p.kills}</td><td>${p.deaths}</td>`;
     body.appendChild(tr);
   });
   $('gameover').hidden = false;
