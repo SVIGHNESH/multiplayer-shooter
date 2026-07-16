@@ -261,6 +261,12 @@ async function newPage(browserWsBase, targetUrl) {
     })()`);
     await sleep(60);
     await host.shot('08-respawn');
+    // Dead + Tab scoreboard: the bottom-docked respawn overlay must not stack on
+    // top of the centered scoreboard (regression guard for the two-panel collision).
+    await host.eval(`toggleScoreboard(true); true`);
+    await sleep(60);
+    await host.shot('08b-respawn-scoreboard');
+    await host.eval(`toggleScoreboard(false); true`);
     await host.eval(`(() => {
       const me = state.curr && state.curr.players.get(state.myId);
       if (me) { me.alive = true; me.hp = 100; me.respawnIn = 0; }

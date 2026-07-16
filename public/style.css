@@ -304,11 +304,14 @@ input[type="text"]:focus {
 .scoreboard th, .standings th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
 .scoreboard td:not(:first-child), .scoreboard th:not(:first-child) { text-align: center; }
 
+/* Docked to the bottom-center (where the health HUD sits while alive) rather than
+   dead-center, so opening the Tab scoreboard while dead doesn't stack the two
+   centered panels on top of each other. */
 .respawn-overlay {
   position: absolute;
-  top: 50%;
+  bottom: 24px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   text-align: center;
   background: rgba(13, 17, 23, 0.7);
   border: 1px solid var(--danger);
