@@ -496,8 +496,14 @@ io.on('connection', (socket) => {
       return socket.emit('errorMsg', { message: 'That room no longer exists.' });
     }
     const ok = joinByCode(socket, pl, room.code);
-    if (ok && hostSocketId) {
-      io.to(hostSocketId).emit('inviteResult', { status: 'accepted', targetName: pl.name });
+    // The plan requires the host to be notified of the outcome either way, so
+    // report a failed accept (e.g. the invitee is already in another room, or the
+    // room filled up / started before they accepted) instead of leaving the host
+    // stuck on "Invite sent...".
+    if (hostSocketId) {
+      io.to(hostSocketId).emit('inviteResult', ok
+        ? { status: 'accepted', targetName: pl.name }
+        : { status: 'failed', targetName: pl.name });
     }
   });
 

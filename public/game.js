@@ -241,6 +241,7 @@ socket.on('inviteResult', (res) => {
     case 'sent': setInviteStatus(`Invite sent to ${res.targetName || res.targetId}.`, 'ok'); break;
     case 'accepted': setInviteStatus(`${res.targetName} accepted!`, 'ok'); break;
     case 'declined': setInviteStatus(`${res.targetName} declined.`, 'err'); break;
+    case 'failed': setInviteStatus(`${res.targetName} accepted, but couldn't join (already in a room or it filled up).`, 'err'); break;
     case 'notfound': setInviteStatus(`No online player with ID ${res.targetId}.`, 'err'); break;
     default: setInviteStatus(res.message || 'Invite failed.', 'err');
   }

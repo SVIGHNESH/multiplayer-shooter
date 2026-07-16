@@ -95,6 +95,24 @@ async function run(port) {
     const declined = await once(host.socket, 'inviteResult');
     check('Declining an invite tells the host', declined.status === 'declined' && declined.targetName === 'Lone');
 
+    // --- Accepting an invite you can't actually fulfill still notifies the host ---
+    // (plan: "the host is notified of the outcome either way"). Here the invitee is
+    // already in their own room, so the accept fails and the host must hear 'failed'.
+    const inviteHost = track(await mkPlayer(url, 'InviteHost'));
+    inviteHost.socket.emit('createRoom');
+    const r2 = await once(inviteHost.socket, 'roomUpdate');
+    const busy = track(await mkPlayer(url, 'Busy'));
+    busy.socket.emit('createRoom'); // busy now sits in their own room
+    await once(busy.socket, 'roomUpdate');
+    inviteHost.socket.emit('invitePlayer', { playerId: busy.id });
+    const busyInvite = await once(busy.socket, 'inviteReceived');
+    await once(inviteHost.socket, 'inviteResult'); // the 'sent' ack
+    busy.socket.emit('inviteResponse', { accepted: true, code: busyInvite.code });
+    const failed = await once(inviteHost.socket, 'inviteResult');
+    check('Accept that cannot join notifies host as failed',
+      failed.status === 'failed' && failed.targetName === 'Busy');
+    void r2;
+
     // --- Joining a match that is already in progress is blocked ---
     const started = once(host.socket, 'gameStarted');
     host.socket.emit('startGame');
