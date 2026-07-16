@@ -396,6 +396,18 @@ socket.on('killFeed', (data) => {
   }
 });
 
+// A player leaves/disconnects mid-match while the game continues: tell the
+// survivors so the vanished player doesn't just silently disappear.
+socket.on('playerLeft', (data) => {
+  const feed = $('kill-feed');
+  const div = document.createElement('div');
+  div.className = 'kf kf-left';
+  div.innerHTML = `<span class="v">${escapeHtml(data.name)}</span> left the match`;
+  feed.appendChild(div);
+  setTimeout(() => div.remove(), 4000);
+  while (feed.children.length > 5) feed.removeChild(feed.firstChild);
+});
+
 socket.on('gameOver', (data) => {
   $('winner-line').textContent = `${data.winner.name} wins!`;
   const body = $('standings-body');

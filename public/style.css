@@ -216,7 +216,8 @@ input[type="text"]:focus {
 
 .kill-feed {
   position: absolute;
-  top: 16px;
+  /* Sits below the top-right mute button so its top line isn't hidden behind it. */
+  top: 60px;
   right: 16px;
   display: flex;
   flex-direction: column;
@@ -233,6 +234,12 @@ input[type="text"]:focus {
 }
 .kill-feed .kf b { color: var(--accent-2); }
 .kill-feed .kf .v { color: var(--danger); }
+.kill-feed .kf-left {
+  font-style: italic;
+  color: var(--muted);
+  border-style: dashed;
+}
+.kill-feed .kf-left .v { color: var(--text); font-style: normal; }
 
 .score-strip {
   position: absolute;

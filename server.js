@@ -587,6 +587,7 @@ function leaveCurrentRoom(socket) {
     return;
   }
   const wasPlaying = room.state === 'playing';
+  const leaverName = pl.name;
   removePlayerFromRoom(room, playerId);
   if (rooms.has(room.code)) {
     // If a match drops below 2 players, end it and return to lobby.
@@ -594,6 +595,9 @@ function leaveCurrentRoom(socket) {
       const remaining = scoreboard(room);
       endGame(room, room.players.get(room.joinOrder[0]) || remaining[0] || { id: null, name: '-' });
     } else {
+      // Match continues with 2+ players: notify the survivors that someone left,
+      // otherwise the player just silently vanishes from the arena.
+      if (wasPlaying) io.to(room.code).emit('playerLeft', { name: leaverName });
       emitRoomUpdate(room);
     }
   }
