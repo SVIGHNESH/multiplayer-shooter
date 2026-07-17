@@ -4,6 +4,9 @@
   "description": "2D top-down multiplayer arena shooter playable in the browser",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
