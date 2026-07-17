@@ -278,6 +278,9 @@ socket.on('gameStarted', (data) => {
   state.bulletDir.clear();
   state.hitMarkers.length = 0;
   state.killedBy = null;
+  // Clear any input held across the lobby (e.g. a movement key still down from
+  // the previous match) so a rematch doesn't start with the player auto-moving.
+  input.up = input.down = input.left = input.right = input.shooting = false;
   $('gameover').hidden = true;
   $('scoreboard').hidden = true;
   $('health-hud').hidden = true;
@@ -587,6 +590,9 @@ canvas.addEventListener('mousemove', (e) => {
 });
 canvas.addEventListener('mousedown', (e) => { if (e.button === 0) input.shooting = true; });
 window.addEventListener('mouseup', (e) => { if (e.button === 0) input.shooting = false; });
+// Suppress the browser context menu over the arena so a right-click mid-fight
+// (a reflex in mouse-aimed shooters) doesn't pop an OS menu covering the game.
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('blur', () => {
   input.up = input.down = input.left = input.right = input.shooting = false;
 });
