@@ -338,6 +338,13 @@ function tickRoom(room) {
 
     survivors.push(b);
   }
+
+  // A kill this tick may have hit the win condition: applyDamage -> endGame has
+  // already reset the room to the lobby, cleared its bullets, and emitted
+  // gameOver. Bail before overwriting that cleared bullet list or broadcasting a
+  // trailing state snapshot, which would arrive on clients after gameOver and
+  // resurrect the just-cleared bullets on the frozen post-match canvas.
+  if (room.state !== 'playing') return;
   room.bullets = survivors;
 
   // --- Snapshot broadcast at SNAPSHOT_HZ ---

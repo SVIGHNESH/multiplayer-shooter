@@ -34,13 +34,20 @@ async function playMatch(a, aId, b, bId) {
     a.on('roomUpdate', onUpdate);
   });
 
+  // Count any `state` snapshots that arrive AFTER gameOver. The server must not
+  // broadcast gameplay state for a match it has just ended; a trailing snapshot
+  // resurrects the bullets endGame cleared onto the frozen post-match canvas.
   let over = false;
+  let statesAfterGameOver = 0;
+  a.on('state', () => { if (over) statesAfterGameOver += 1; });
   gameOverP.then(() => { over = true; }).catch(() => {});
   await hunt(a, aId, bId, () => over);
 
   const result = await gameOverP;
   const lobbyRoom = await lobbyAgainP;
-  return { result, lobbyRoom };
+  // Give any (buggy) trailing snapshot from the winning tick time to arrive.
+  await wait(500);
+  return { result, lobbyRoom, statesAfterGameOver };
 }
 
 async function run(port) {
@@ -67,9 +74,10 @@ async function run(port) {
     await startedB;
     check('gameStarted reports killsToWin', gs.killsToWin === KILLS_TO_WIN);
 
-    const { result, lobbyRoom } = await playMatch(a, regA.playerId, b, regB.playerId);
+    const { result, lobbyRoom, statesAfterGameOver } = await playMatch(a, regA.playerId, b, regB.playerId);
 
     check('gameOver fires with a winner', !!result.winner && result.winner.id === regA.playerId);
+    check('No state snapshot is broadcast after gameOver', statesAfterGameOver === 0);
     check('Winner name is Alice', result.winner.name === 'Alice');
     check('Standings include both players', Array.isArray(result.standings) && result.standings.length === 2);
     check('Standings are sorted, winner first', result.standings[0].id === regA.playerId);
