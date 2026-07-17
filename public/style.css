@@ -259,9 +259,23 @@ input[type="text"]:focus {
   border-radius: 8px;
   padding: 8px 12px;
 }
-.score-strip .s { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--muted); }
-.score-strip .s .dot { width: 10px; height: 10px; border-radius: 50%; }
+.score-strip .s {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.score-strip .s .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.score-strip .s .who { font-weight: 600; font-size: 12px; opacity: 0.85; }
+.score-strip .s .kc { min-width: 12px; text-align: right; }
+.score-strip .s.me { color: var(--accent); }
+.score-strip .s.me .who { opacity: 1; }
 .score-strip .s.leader { color: var(--text); }
+/* Crown glyph so the leader reads without relying on color alone. */
+.score-strip .s.leader .crown { color: #ffd54a; font-size: 12px; margin-right: 1px; }
+.score-strip .more { display: flex; align-items: center; color: var(--muted); font-weight: 700; font-size: 12px; }
 
 /* Frag-limit chip: the win target, and a pulsing MATCH POINT when the leader is
    one kill from ending the match. */
@@ -379,6 +393,40 @@ input[type="text"]:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* Dash cooldown indicator: fills back to full + glows green when ready. */
+.dash-ind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border);
+}
+.dash-ind .dash-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.dash-ind .dash-bar {
+  width: 74px;
+  height: 8px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.dash-ind .dash-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 5px;
+  background: var(--muted);
+  transition: width 0.1s linear, background-color 0.15s linear;
+}
+.dash-ind .dash-fill.ready {
+  background: var(--accent-2);
+  box-shadow: 0 0 8px rgba(24, 255, 255, 0.6);
+}
+
 /* ---------- Overlays / popups ---------- */
 .overlay {
   position: fixed;
@@ -416,6 +464,37 @@ input[type="text"]:focus {
 .standings tr.me td:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 .standings .you { color: var(--accent); font-weight: 600; }
 .popup-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+
+/* Game-over: the local player's own placement, called out above the table so
+   they don't have to hunt an 8-row list for their result. */
+.personal-result {
+  margin: -6px 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.personal-result.win { color: var(--good); }
+.overlay-actions { display: flex; gap: 12px; justify-content: center; margin-top: 4px; }
+
+/* Keyboard focus ring: the whole lobby is operable by keyboard, so give buttons
+   and the code/invite inputs the same visible focus the text inputs already get.
+   :focus-visible (not :focus) keeps mouse clicks from leaving a lingering ring. */
+.btn:focus-visible,
+input[type="text"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(64, 196, 255, 0.35);
+}
+
+/* Respect reduced-motion: drop the infinite pulses but keep the emphasis static
+   so the tension/urgency still reads. */
+@media (prefers-reduced-motion: reduce) {
+  .score-strip .goal.match-point,
+  .conn-dot {
+    animation: none;
+  }
+  .score-strip .goal.match-point { font-weight: 800; }
+}
 
 /* ---------- Toast ---------- */
 .toast {

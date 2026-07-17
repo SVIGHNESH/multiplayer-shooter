@@ -31,6 +31,25 @@ const ROOM_MAX_PLAYERS = 8;
 const TICK_HZ = 60;
 const SNAPSHOT_HZ = 30;
 
+// Dash: a short high-speed burst for dodging/closing, on a cooldown. The dash
+// still moves through the same per-axis collide-and-slide as normal movement, so
+// it can never teleport through a wall.
+const DASH_SPEED = 760; // px/s during the burst (vs PLAYER_SPEED 260)
+const DASH_MS = 150;     // burst duration
+const DASH_COOLDOWN_MS = 1600;
+
+// Health packs: fixed floor pickups that heal on touch, then recharge. Positions
+// are validated against the arena at startup so none spawn inside an obstacle.
+const PICKUP_RADIUS = 15;
+const PICKUP_HEAL = 40;
+const PICKUP_RESPAWN_MS = 12000;
+const HEALTH_PACK_SPOTS = [
+  { x: 800, y: 280 },
+  { x: 800, y: 920 },
+  { x: 280, y: 600 },
+  { x: 1320, y: 600 },
+];
+
 // Rectangular obstacles inside the arena (x, y = top-left corner).
 const OBSTACLES = [
   { x: 300, y: 250, w: 200, h: 60 },
@@ -152,6 +171,7 @@ function createRoom(hostPlayerId) {
     players: new Map(), // playerId -> game/lobby player object
     joinOrder: [], // playerIds in arrival order (for host succession)
     bullets: [],
+    pickups: [], // health packs, populated at match start
     nextBulletId: 1,
     loop: null,
     lastTick: 0,
@@ -176,7 +196,11 @@ function addPlayerToRoom(room, playerId, name) {
     lastShotAt: 0,
     kills: 0,
     deaths: 0,
-    input: { up: false, down: false, left: false, right: false, angle: 0, shooting: false },
+    dashUntil: 0,
+    dashReadyAt: 0,
+    dashDirX: 0,
+    dashDirY: 0,
+    input: { up: false, down: false, left: false, right: false, angle: 0, shooting: false, dash: false },
   };
   room.players.set(playerId, gp);
   room.joinOrder.push(playerId);
@@ -235,6 +259,10 @@ function emitRoomUpdate(room) {
 function startGame(room) {
   room.state = 'playing';
   room.bullets = [];
+  // Health packs start active; only spots clear of walls/obstacles are used.
+  room.pickups = HEALTH_PACK_SPOTS
+    .filter((s) => !collidesWorld(s.x, s.y, PICKUP_RADIUS))
+    .map((s, i) => ({ id: i + 1, x: s.x, y: s.y, active: true, readyAt: 0 }));
   for (const p of room.players.values()) {
     const spawn = pickSpawn(room);
     p.x = spawn.x;
@@ -244,7 +272,9 @@ function startGame(room) {
     p.respawnAt = 0;
     p.kills = 0;
     p.deaths = 0;
-    p.input = { up: false, down: false, left: false, right: false, angle: 0, shooting: false };
+    p.dashUntil = 0;
+    p.dashReadyAt = 0;
+    p.input = { up: false, down: false, left: false, right: false, angle: 0, shooting: false, dash: false };
   }
 
   io.to(room.code).emit('gameStarted', {
@@ -253,6 +283,8 @@ function startGame(room) {
     playerRadius: PLAYER_RADIUS,
     killsToWin: KILLS_TO_WIN,
     players: roomRoster(room),
+    pickups: room.pickups.map((pk) => ({ id: pk.id, x: pk.x, y: pk.y })),
+    dashCooldownMs: DASH_COOLDOWN_MS,
   });
 
   room.lastTick = Date.now();
@@ -281,15 +313,39 @@ function tickRoom(room) {
 
     let mx = (p.input.right ? 1 : 0) - (p.input.left ? 1 : 0);
     let my = (p.input.down ? 1 : 0) - (p.input.up ? 1 : 0);
+    let nmx = 0, nmy = 0;
     if (mx !== 0 || my !== 0) {
       const len = Math.hypot(mx, my);
-      mx /= len;
-      my /= len;
+      nmx = mx / len;
+      nmy = my / len;
+    }
+
+    // Start a dash: latch the current move direction (or the aim direction when
+    // standing still) and open the burst + cooldown windows.
+    if (p.input.dash && now >= p.dashReadyAt) {
+      let dx = nmx, dy = nmy;
+      if (dx === 0 && dy === 0) { dx = Math.cos(p.angle); dy = Math.sin(p.angle); }
+      p.dashDirX = dx;
+      p.dashDirY = dy;
+      p.dashUntil = now + DASH_MS;
+      p.dashReadyAt = now + DASH_COOLDOWN_MS;
+    }
+
+    const dashing = now < p.dashUntil;
+    if (dashing) {
+      // Dash overrides steering: full-speed burst along the latched direction,
+      // still resolved per-axis so walls stop it instead of letting it wall-clip.
+      const step = DASH_SPEED * dt;
+      const nx = p.x + p.dashDirX * step;
+      if (!collidesWorld(nx, p.y, PLAYER_RADIUS)) p.x = nx;
+      const ny = p.y + p.dashDirY * step;
+      if (!collidesWorld(p.x, ny, PLAYER_RADIUS)) p.y = ny;
+    } else if (nmx !== 0 || nmy !== 0) {
       const step = PLAYER_SPEED * dt;
       // Move each axis independently so we can slide along walls/obstacles.
-      const nx = p.x + mx * step;
+      const nx = p.x + nmx * step;
       if (!collidesWorld(nx, p.y, PLAYER_RADIUS)) p.x = nx;
-      const ny = p.y + my * step;
+      const ny = p.y + nmy * step;
       if (!collidesWorld(p.x, ny, PLAYER_RADIUS)) p.y = ny;
     }
 
@@ -307,6 +363,27 @@ function tickRoom(room) {
         vx: Math.cos(p.angle) * BULLET_SPEED,
         vy: Math.sin(p.angle) * BULLET_SPEED,
       });
+    }
+  }
+
+  // --- Health pickups: heal on touch, then recharge ---
+  for (const pk of room.pickups) {
+    if (!pk.active) {
+      if (now >= pk.readyAt) pk.active = true;
+      continue;
+    }
+    for (const p of room.players.values()) {
+      if (!p.alive || p.hp >= PLAYER_MAX_HP) continue;
+      const dx = p.x - pk.x;
+      const dy = p.y - pk.y;
+      if (dx * dx + dy * dy <= (PLAYER_RADIUS + PICKUP_RADIUS) ** 2) {
+        p.hp = Math.min(PLAYER_MAX_HP, p.hp + PICKUP_HEAL);
+        pk.active = false;
+        pk.readyAt = now + PICKUP_RESPAWN_MS;
+        const sock = players.get(p.id)?.socketId;
+        if (sock) io.to(sock).emit('pickup', { kind: 'health' });
+        break;
+      }
     }
   }
 
@@ -400,6 +477,8 @@ function broadcastState(room, now) {
     players: [],
     bullets: room.bullets.map((b) => ({ id: b.id, x: Math.round(b.x), y: Math.round(b.y), ownerId: b.ownerId })),
     scores: scoreboard(room),
+    // Only active packs are sent; an empty array here means all are recharging.
+    pickups: room.pickups.filter((pk) => pk.active).map((pk) => pk.id),
   };
   for (const id of room.joinOrder) {
     const p = room.players.get(id);
@@ -412,6 +491,9 @@ function broadcastState(room, now) {
       hp: p.hp,
       alive: p.alive,
       respawnIn: p.alive ? 0 : Math.max(0, Math.ceil((p.respawnAt - now) / 1000)),
+      // Client-side juice + cooldown UI (additive; ignored by the E2E bots).
+      dashing: now < p.dashUntil,
+      dashReadyIn: Math.max(0, p.dashReadyAt - now),
     });
   }
   io.to(room.code).emit('state', snapshot);
@@ -561,6 +643,7 @@ io.on('connection', (socket) => {
       right: !!input.right,
       angle: typeof input.angle === 'number' && Number.isFinite(input.angle) ? input.angle : gp.input.angle,
       shooting: !!input.shooting,
+      dash: !!input.dash,
     };
   });
 

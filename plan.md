@@ -72,7 +72,9 @@ When a player creates a game, both join mechanisms are available at once:
 
 - Circle body (radius 18) with a gun barrel indicating aim direction.
 - Movement: WASD / arrow keys, speed ~260 px/s, normalized diagonals.
+- Dash: Space / Shift triggers a short 760 px/s burst (150 ms) on a 1.6 s cooldown for dodging and closing gaps. Server-authoritative and still wall-blocked (no teleporting through cover); a HUD pip shows the cooldown.
 - Health: 100 HP, shown as a bar above each player.
+- Health packs: four fixed floor pickups heal 40 HP on touch, then recharge after 12 s. Healing is server-side only.
 - Death: killed players respawn after 2.5 seconds at a fresh spawn point.
 - Each player gets a distinct color assigned by the server.
 
@@ -148,9 +150,19 @@ When a player creates a game, both join mechanisms are available at once:
 6. Smoke test: automated script with two `socket.io-client` instances covering register -> create -> join by code -> invite by ID -> start -> movement/shooting -> kill credit.
 7. Manual playtest in two browser windows for feel (speeds, cooldowns) and UI polish.
 
+## Client Juice (v1.1)
+
+The moment-to-moment feel is layered on the authoritative sim, entirely client-side so it never affects hit registration:
+
+- Camera trauma / screenshake on firing, taking damage, kills, and death (squared falloff so small taps barely nudge and big hits jolt).
+- Own-fire prediction: the local muzzle flash, shot sound, and recoil fire the instant you click instead of waiting a snapshot round-trip; the authoritative bullet still renders from the server.
+- Death-burst explosions (shockwave ring + sparks) where players are eliminated.
+- Hit-stop: a brief freeze-frame of world interpolation on a confirmed kill or your own death.
+- Dash afterimages and a health-pack pickup chime.
+
 ## Out of Scope (for v1)
 
 - Accounts, persistence, or matchmaking beyond codes/invites.
-- Client-side prediction and lag compensation (interpolation only; fine for low-latency play).
-- Multiple weapons, pickups, or game modes beyond deathmatch.
-- Mobile/touch controls.
+- Full client-side movement prediction and lag compensation (remote entities use interpolation; only own-fire feedback is predicted).
+- Multiple weapons or game modes beyond deathmatch (dash + health packs add depth within deathmatch).
+- Touch controls (coarse-pointer devices get an honest desktop-only gate instead).

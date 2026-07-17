@@ -101,6 +101,10 @@
         <span class="hp-label">HP</span>
         <div class="hp-bar"><div id="hp-fill" class="hp-fill"></div></div>
         <span id="hp-value" class="hp-value">100</span>
+        <div class="dash-ind" title="Dash - Space or Shift">
+          <span class="dash-label">DASH</span>
+          <div class="dash-bar"><div id="dash-fill" class="dash-fill"></div></div>
+        </div>
       </div>
 
       <button id="btn-mute" class="btn btn-ghost mute-btn" title="Mute sound (M)" aria-pressed="false">&#128266;</button>
@@ -112,11 +116,15 @@
   <div id="gameover" class="overlay" hidden>
     <div class="overlay-card">
       <h2 id="winner-line">Winner</h2>
+      <div id="personal-result" class="personal-result"></div>
       <table class="standings">
         <thead><tr><th>#</th><th>Player</th><th>Kills</th><th>Deaths</th></tr></thead>
         <tbody id="standings-body"></tbody>
       </table>
-      <button id="btn-back-lobby" class="btn btn-primary">Back to Lobby</button>
+      <div class="overlay-actions">
+        <button id="btn-back-lobby" class="btn btn-ghost">Back to Lobby</button>
+        <button id="btn-rematch" class="btn btn-primary" hidden>Rematch</button>
+      </div>
     </div>
   </div>
 
@@ -136,6 +144,15 @@
   <div id="conn-banner" class="conn-banner" hidden>
     <span class="conn-dot"></span>
     <span id="conn-text">Connection lost - reconnecting&hellip;</span>
+  </div>
+
+  <!-- ===================== DESKTOP-ONLY GATE ===================== -->
+  <div id="device-gate" class="overlay" hidden>
+    <div class="overlay-card small">
+      <h2>Desktop only</h2>
+      <p>Arena Shooter needs a <strong>keyboard and mouse</strong>: WASD to move, mouse to aim, click to shoot. Touch controls aren't supported yet, so a phone or tablet can't play.</p>
+      <button id="btn-play-anyway" class="btn btn-ghost">Play anyway</button>
+    </div>
   </div>
 
   <!-- ===================== TOAST ===================== -->
