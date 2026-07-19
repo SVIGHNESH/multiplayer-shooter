@@ -62,8 +62,8 @@ const OBSTACLES = [
 ];
 
 const PLAYER_COLORS = [
-  '#ff5252', '#40c4ff', '#69f0ae', '#ffd740',
-  '#e040fb', '#ff6e40', '#18ffff', '#b2ff59',
+  '#ff5470', '#4cc9f0', '#5ef2a0', '#ffc857',
+  '#c77dff', '#ff8f5e', '#25e8d8', '#c3f25e',
 ];
 
 // Characters used for IDs / room codes (ambiguous 0/O/1/I removed).

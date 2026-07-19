@@ -173,8 +173,8 @@ async function newPage(browserWsBase, targetUrl) {
         // when the player is clamped against an arena edge.
         const ox = me.x < 800 ? 40 : -40;
         const oy = me.y < 600 ? 40 : -40;
-        state.muzzleFlashes.push({ x: me.x, y: me.y, born: now, color: '#ffd740' });
-        state.muzzleFlashes.push({ x: me.x + ox, y: me.y + oy, born: now, color: '#40c4ff' });
+        state.muzzleFlashes.push({ x: me.x, y: me.y, born: now, color: '#ffc857' });
+        state.muzzleFlashes.push({ x: me.x + ox, y: me.y + oy, born: now, color: '#4cc9f0' });
       }
       return state.muzzleFlashes.length;
     })()`);
@@ -190,8 +190,8 @@ async function newPage(browserWsBase, targetUrl) {
         const ox = me.x < 800 ? 60 : -60;
         const oy = me.y < 600 ? 60 : -60;
         // Sparks spray back against the incoming bullet direction.
-        state.impacts.push({ x: me.x + ox, y: me.y, dx: -Math.sign(ox), dy: 0, born: now, color: '#ffd740' });
-        state.impacts.push({ x: me.x, y: me.y + oy, dx: 0, dy: -Math.sign(oy), born: now, color: '#40c4ff' });
+        state.impacts.push({ x: me.x + ox, y: me.y, dx: -Math.sign(ox), dy: 0, born: now, color: '#ffc857' });
+        state.impacts.push({ x: me.x, y: me.y + oy, dx: 0, dy: -Math.sign(oy), born: now, color: '#4cc9f0' });
       }
       return state.impacts.length;
     })()`);
@@ -222,7 +222,7 @@ async function newPage(browserWsBase, targetUrl) {
       socket.off('state');
       // Place synthetic enemies at the arena corners so at least those far from
       // the camera fall off-screen and produce edge arrows.
-      const corners = [[70,70,'#40c4ff'],[1530,70,'#ff5252'],[70,1130,'#69f0ae'],[1530,1130,'#ffd740']];
+      const corners = [[70,70,'#4cc9f0'],[1530,70,'#ff5470'],[70,1130,'#5ef2a0'],[1530,1130,'#ffc857']];
       let n = 0;
       corners.forEach((c, i) => {
         const id = 'P-FAKE' + i;
@@ -295,8 +295,8 @@ async function newPage(browserWsBase, targetUrl) {
       // scoreboard-close behavior) is still exercised when the bots don't converge.
       await host.eval(`(() => {
         const std = [
-          { id: state.myId, name: 'Ghost', color: (state.colors && state.colors[state.myId]) || '#40c4ff', kills: 3, deaths: 1 },
-          { id: 'P-XXXX', name: 'Reaper', color: '#ff5252', kills: 1, deaths: 3 },
+          { id: state.myId, name: 'Ghost', color: (state.colors && state.colors[state.myId]) || '#4cc9f0', kills: 3, deaths: 1 },
+          { id: 'P-XXXX', name: 'Reaper', color: '#ff5470', kills: 1, deaths: 3 },
         ];
         socket.listeners('gameOver')[0]({ winner: std[0], standings: std });
         return true;

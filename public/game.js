@@ -342,7 +342,7 @@ socket.on('gameStarted', (data) => {
   $('scoreboard').hidden = true;
   $('health-hud').hidden = true;
   $('hp-fill').style.width = '100%';
-  $('hp-fill').style.background = '#69f0ae';
+  $('hp-fill').style.background = '#5ef2a0';
   $('hp-value').textContent = '100';
   state.scoreboardOpen = false;
   // Center the aim reticle so it isn't stuck at (0,0) until the first mouse move.
@@ -379,7 +379,7 @@ socket.on('state', (snap) => {
       x: owner.x + Math.cos(owner.angle) * (radius + 10),
       y: owner.y + Math.sin(owner.angle) * (radius + 10),
       born: state.recvCurr,
-      color: state.colors.get(b.ownerId) || '#ffd740',
+      color: state.colors.get(b.ownerId) || '#ffc857',
     });
     // Gunfire sound for other players, distance-attenuated from the local player.
     if (listener) {
@@ -424,7 +424,7 @@ socket.on('state', (snap) => {
       dx: dir.dx,
       dy: dir.dy,
       born: state.recvCurr,
-      color: state.colors.get(pb.ownerId) || '#ffd740',
+      color: state.colors.get(pb.ownerId) || '#ffc857',
     });
     state.bulletDir.delete(id);
   }
@@ -437,7 +437,7 @@ socket.on('state', (snap) => {
     for (const [id, cp] of state.curr.players) {
       const pp = state.prev.players.get(id);
       if (pp && pp.alive && !cp.alive) {
-        state.deathBursts.push({ x: cp.x, y: cp.y, born: state.recvCurr, color: state.colors.get(id) || '#ffd740' });
+        state.deathBursts.push({ x: cp.x, y: cp.y, born: state.recvCurr, color: state.colors.get(id) || '#ffc857' });
       }
     }
     if (state.deathBursts.length > 30) state.deathBursts.splice(0, state.deathBursts.length - 30);
@@ -483,7 +483,7 @@ function updateHealthHud(me) {
   const hp = Math.max(0, Math.min(100, Math.round(me.hp)));
   const frac = hp / 100;
   $('hp-fill').style.width = frac * 100 + '%';
-  $('hp-fill').style.background = frac > 0.5 ? '#69f0ae' : frac > 0.25 ? '#ffd740' : '#ff5252';
+  $('hp-fill').style.background = frac > 0.5 ? '#5ef2a0' : frac > 0.25 ? '#ffc857' : '#ff5470';
   $('hp-value').textContent = hp;
 }
 
@@ -805,7 +805,7 @@ function predictOwnFire() {
     x: me.x + Math.cos(ang) * (radius + 10),
     y: me.y + Math.sin(ang) * (radius + 10),
     born: now,
-    color: state.colors.get(state.myId) || '#ffd740',
+    color: state.colors.get(state.myId) || '#ffc857',
   });
   if (state.muzzleFlashes.length > 40) state.muzzleFlashes.splice(0, state.muzzleFlashes.length - 40);
   addTrauma(0.12);
@@ -997,20 +997,20 @@ function draw() {
   ctx.clearRect(0, 0, vw, vh);
 
   // Background
-  ctx.fillStyle = '#0b0f14';
+  ctx.fillStyle = '#0d0713';
   ctx.fillRect(0, 0, vw, vh);
 
   drawGrid(world);
 
   // Arena border
-  ctx.strokeStyle = '#2b3441';
+  ctx.strokeStyle = '#3a2a52';
   ctx.lineWidth = 4;
   ctx.strokeRect(-camera.x, -camera.y, world.width, world.height);
 
   // Obstacles
   for (const o of obstacles) {
-    ctx.fillStyle = '#232c38';
-    ctx.strokeStyle = '#39465a';
+    ctx.fillStyle = '#2a1c3d';
+    ctx.strokeStyle = '#4d3a6b';
     ctx.lineWidth = 2;
     ctx.fillRect(o.x - camera.x, o.y - camera.y, o.w, o.h);
     ctx.strokeRect(o.x - camera.x, o.y - camera.y, o.w, o.h);
@@ -1029,7 +1029,7 @@ function draw() {
 
     ctx.lineCap = 'round';
     for (const b of state.curr.bullets) {
-      const color = state.colors.get(b.ownerId) || '#ffd740';
+      const color = state.colors.get(b.ownerId) || '#ffc857';
       const p = prevBullets.get(b.id);
       const hx = (p ? lerp(p.x, b.x, bt) : b.x) - camera.x;
       const hy = (p ? lerp(p.y, b.y, bt) : b.y) - camera.y;
@@ -1201,22 +1201,22 @@ function drawPickups() {
     ctx.save();
     // Soft glow.
     const glow = ctx.createRadialGradient(x, y, 0, x, y, 22);
-    glow.addColorStop(0, `rgba(105,240,174,${(0.35 * pulse).toFixed(3)})`);
-    glow.addColorStop(1, 'rgba(105,240,174,0)');
+    glow.addColorStop(0, `rgba(94,242,160,${(0.35 * pulse).toFixed(3)})`);
+    glow.addColorStop(1, 'rgba(94,242,160,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(x, y, 22, 0, Math.PI * 2);
     ctx.fill();
     // Rounded plate.
-    ctx.fillStyle = 'rgba(13,17,23,0.85)';
-    ctx.strokeStyle = '#69f0ae';
+    ctx.fillStyle = 'rgba(18,10,26,0.85)';
+    ctx.strokeStyle = '#5ef2a0';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(x - 13, y - 13, 26, 26, 6);
     ctx.fill();
     ctx.stroke();
     // Cross.
-    ctx.fillStyle = '#69f0ae';
+    ctx.fillStyle = '#5ef2a0';
     const a = 3.5, b = 9;
     ctx.fillRect(x - a, y - b, a * 2, b * 2);
     ctx.fillRect(x - b, y - a, b * 2, a * 2);
@@ -1345,7 +1345,7 @@ function drawReticle() {
   ctx.lineCap = 'round';
 
   // Faint aim line from the player toward the cursor.
-  ctx.strokeStyle = 'rgba(220,235,255,0.10)';
+  ctx.strokeStyle = 'rgba(230,222,255,0.10)';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 9]);
   ctx.beginPath();
@@ -1479,9 +1479,9 @@ function drawMinimap(vw, vh) {
   // Panel background + border.
   ctx.beginPath();
   ctx.roundRect(x0 - 4, y0 - 4, mapW + 8, mapH + 8, 6);
-  ctx.fillStyle = 'rgba(13, 17, 23, 0.74)';
+  ctx.fillStyle = 'rgba(18, 10, 26, 0.74)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(57, 70, 90, 0.9)';
+  ctx.strokeStyle = 'rgba(77, 58, 107, 0.9)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
@@ -1491,11 +1491,11 @@ function drawMinimap(vw, vh) {
   ctx.clip();
 
   // Arena floor.
-  ctx.fillStyle = 'rgba(20, 26, 34, 0.9)';
+  ctx.fillStyle = 'rgba(26, 17, 38, 0.9)';
   ctx.fillRect(x0, y0, mapW, mapH);
 
   // Obstacles.
-  ctx.fillStyle = 'rgba(70, 84, 104, 0.85)';
+  ctx.fillStyle = 'rgba(96, 74, 128, 0.85)';
   for (const o of obstacles) {
     ctx.fillRect(x0 + o.x * sx, y0 + o.y * sy, o.w * sx, o.h * sy);
   }
@@ -1578,7 +1578,7 @@ function drawPlayer(id, rp, radius) {
   // reads clearly against the player's own colour, extending past the body.
   const cos = Math.cos(rp.angle);
   const sin = Math.sin(rp.angle);
-  ctx.strokeStyle = '#11161d';
+  ctx.strokeStyle = '#150d1f';
   ctx.lineCap = 'round';
   ctx.lineWidth = 8;
   ctx.beginPath();
@@ -1588,7 +1588,7 @@ function drawPlayer(id, rp, radius) {
   ctx.lineCap = 'butt';
 
   // Name
-  ctx.fillStyle = '#e6edf3';
+  ctx.fillStyle = '#f0e9fa';
   ctx.font = '13px "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(name, x, y - radius - 14);
@@ -1601,7 +1601,7 @@ function drawPlayer(id, rp, radius) {
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(bx, by, bw, bh);
   const frac = Math.max(0, Math.min(1, rp.hp / 100));
-  ctx.fillStyle = frac > 0.5 ? '#69f0ae' : frac > 0.25 ? '#ffd740' : '#ff5252';
+  ctx.fillStyle = frac > 0.5 ? '#5ef2a0' : frac > 0.25 ? '#ffc857' : '#ff5470';
   ctx.fillRect(bx, by, bw * frac, bh);
 }
 
